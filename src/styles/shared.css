@@ -1,0 +1,6 @@
+@import url("https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css");
+:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-synthesis:none;text-rendering:optimizeLegibility;--green:#3ecf8e;--green-strong:#28b87a;--radius:12px;color-scheme:dark}
+:root[data-theme="dark"]{--bg:#101312;--surface:#171b19;--surface-2:#1c211f;--surface-3:#252b28;--line:#2b322e;--line-soft:#222925;--text:#eff3f0;--muted:#8b9690;--dim:#626c66;--green-bg:#173c2d;--danger:#f27676;--shadow:0 16px 44px #0005;color-scheme:dark}
+:root[data-theme="light"]{--bg:#f7f9f8;--surface:#fff;--surface-2:#f2f5f3;--surface-3:#e9efeb;--line:#dde5e0;--line-soft:#e8ede9;--text:#19201c;--muted:#6a766f;--dim:#89948d;--green-bg:#e0f6eb;--danger:#c84242;--shadow:0 16px 44px #26372a12;color-scheme:light}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-size:14px}button,input,textarea,select{font:inherit}button,a{color:inherit}a{text-decoration:none}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--green);outline-offset:2px}::selection{background:#3ecf8e55}.muted{color:var(--muted)}.eyebrow{font:500 10px 'DM Mono',monospace;letter-spacing:.11em;color:var(--muted);margin:0 0 10px}.mono{font-family:'DM Mono',monospace}
+

@@ -1,0 +1,19 @@
+.hero-banner{min-height:245px;position:relative;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:linear-gradient(112deg,var(--surface) 5%,#17221b 100%);padding:30px 34px;display:flex;align-items:center}.hero-copy{position:relative;z-index:2;max-width:420px}.hero-label{font:500 9px 'DM Mono',monospace;color:var(--green);letter-spacing:.13em}.hero-copy h2{font-size:27px;line-height:1.22;letter-spacing:-.04em;margin:13px 0 9px}.hero-copy p{color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 18px;max-width:310px}.hero-orbit{position:absolute;right:8%;top:50%;transform:translateY(-50%);width:210px;height:210px;display:grid;place-items:center;color:var(--green)}.orbit-ring{position:absolute;border:1px solid #3ecf8e24;border-radius:50%}.ring-one{width:120px;height:120px}.ring-two{width:195px;height:195px}.hero-orbit:before,.hero-orbit:after{content:'';position:absolute;background:#3ecf8e14;border-radius:50%;filter:blur(20px)}.hero-orbit:before{width:100px;height:100px}.orbit-center,.orbit-node{display:grid;place-items:center;position:absolute}.orbit-center{width:66px;height:66px;border-radius:20px;background:#173c2d;border:1px solid #3ecf8e45}.orbit-center img{width:44px;height:44px;object-fit:contain}.orbit-node{width:37px;height:37px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line)}.node-a{left:18px;top:50px}.node-b{right:15px;bottom:37px}.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.stat-card{padding:15px 17px;display:grid;grid-template-columns:1fr auto}.stat-card span{color:var(--muted);font-size:11px}.stat-card strong{font:500 19px 'DM Mono',monospace;grid-row:span 2;align-self:center}.stat-card small{color:var(--dim);font-size:10px;margin-top:5px}.text-link{color:var(--green);font-size:11px;display:flex;gap:6px;align-items:center}.quick-links{display:grid;grid-template-columns:1fr 1fr;gap:12px}.quick-link{padding:16px;display:flex;align-items:center;gap:12px;color:var(--green)}.quick-link span{display:grid;gap:4px;color:var(--text);flex:1}.quick-link b{font-size:12px}.quick-link small{font-size:10px;color:var(--muted)}.quick-link:hover{border-color:var(--green)}@media(max-width:650px){.hero-banner{padding:24px}.hero-orbit{opacity:.25;right:-50px}.hero-copy h2{font-size:24px}.stats-row{grid-template-columns:1fr}.quick-links{grid-template-columns:1fr}}
+
+/* Keep the home dashboard visible as a single glance on laptop-height windows. */
+@media (min-width: 651px) {
+    .page-content:has(.hero-banner) { padding-top: 23px; padding-bottom: 25px; }
+    .page-content:has(.hero-banner) .page-heading { margin-bottom: 18px; }
+    .hero-banner { min-height: 178px; padding: 20px 27px; }
+    .hero-copy h2 { font-size: 23px; margin: 9px 0 6px; }
+    .hero-copy p { margin-bottom: 11px; }
+    .hero-orbit { transform: translateY(-50%) scale(.78); }
+    .stats-row { margin-top: 10px; gap: 9px; }
+    .stat-card { padding: 11px 14px; }
+    .page-content:has(.hero-banner) .section-heading { margin: 17px 0 9px; }
+    .page-content:has(.hero-banner) .addon-card { padding: 12px; }
+    .page-content:has(.hero-banner) .addon-card .card-bottom { margin-top: 10px; padding-top: 8px; }
+    .quick-links { gap: 9px; }
+    .quick-link { padding: 11px 13px; }
+}
+

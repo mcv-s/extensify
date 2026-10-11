@@ -1,0 +1,31 @@
+.search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex: 1;
+    position: relative
+}
+
+.search-wrap>i {
+    position: absolute;
+    left: 12px;
+    color: var(--muted)
+}
+
+.search-wrap .search-field {
+    padding-left: 37px
+}
+
+.addon-grid {
+    margin-top: 10px
+}
+
+.toolbar .muted {
+    font-size: 11px
+}
+
+
+.search-wrap .icon {
+    position: absolute;
+    left: 10px;
+}
