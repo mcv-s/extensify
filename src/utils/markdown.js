@@ -49,7 +49,10 @@ function codeHtml(block) {
 function inline(value) {
   const code = [];
   let result = escapeHtml(value).replace(/`([^`]+)`/g, (_match, text) => `\u0000${code.push(`<code>${text}</code>`) - 1}\u0000`);
-  result = result.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+  result = result.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+|\.{0,2}\/[^\s)]+|#[^\s)]+)\)/g, (_match, label, href) => {
+    const external = /^(?:https?:|mailto:)/i.test(href);
+    return `<a href="${href}"${external ? ' target="_blank" rel="noreferrer"' : ''}>${label}</a>`;
+  });
   result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/__(.+?)__/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>').replace(/_(.+?)_/g, '<em>$1</em>').replace(/~~(.+?)~~/g, '<del>$1</del>');
   return result.replace(/\u0000(\d+)\u0000/g, (_match, index) => code[Number(index)]);
 }

@@ -1,6 +1,9 @@
 import { renderShell, icon, toast } from '../components/shell.js';
 import { renderMarkdown } from '../utils/markdown.js';
 
+const inExtension = /^(?:chrome-extension|extension):$/i.test(location.protocol);
+if (!inExtension) document.body.classList.add('standalone-document');
+
 try {
   const docsUrl = globalThis.chrome?.runtime?.getURL
     ? chrome.runtime.getURL('docs.md')
@@ -25,12 +28,19 @@ try {
     button.innerHTML = `${icon('copy',14)}<span>Copy</span>`;
     pre.append(button);
   });
-  await renderShell({ active:'docs', title:'Documentation', content:`
+  const documentContent = `
     <div class="docs-layout">
       <nav class="docs-toc" aria-label="Documentation sections"><span>ON THIS PAGE</span>${navigation}</nav>
       <article class="docs-article markdown-body">${template.innerHTML}</article>
-    </div>` });
-  document.querySelector('.page-content').classList.add('docs-page');
+    </div>`;
+  if (inExtension) {
+    await renderShell({ active:'docs', title:'Documentation', content:documentContent });
+    document.querySelector('.page-content').classList.add('docs-page');
+  } else {
+    document.title = 'Documentation - Extensify';
+    document.querySelector('#app').innerHTML = `<main class="standalone-doc-wrap"><a class="standalone-brand" href="./quickstart.html"><img src="./logo.svg" alt=""> extensify</a><header class="standalone-heading"><span>EXTENSIFY GUIDE</span><h1>Documentation</h1><p>Browse the guide to installing Extensify, using addons, and building your own.</p><nav><a href="./quickstart.html">Quickstart</a><a href="./privacy.html">Privacy policy</a></nav></header>${documentContent}</main>`;
+    document.querySelector('.docs-article').classList.add('standalone-article');
+  }
   document.querySelectorAll('.docs-copy-button').forEach(button => button.addEventListener('click', async () => {
     const code = button.closest('pre')?.querySelector('code')?.textContent ?? '';
     try {
