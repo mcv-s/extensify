@@ -162,6 +162,7 @@ async function main() {
     const file = event.target.closest('[data-path]');
     if (!file) return;
     event.preventDefault(); contextPath = file.dataset.path;
+    menu.querySelector('[data-menu-action="copy"]').dataset.tooltip = `Copy path: ${contextPath}`;
     menu.hidden = false;
     const left = Math.min(event.clientX, innerWidth - menu.offsetWidth - 10);
     const top = Math.min(event.clientY, innerHeight - menu.offsetHeight - 10);
@@ -248,8 +249,8 @@ async function renderProjectPicker(state) {
     <dialog id="addon-project-rename" class="editor-dialog"><form id="addon-project-rename-form"><h2>Rename addon</h2><label class="setting-field"><span class="setting-label">Addon title</span><input id="addon-project-title" class="field" maxlength="80" required></label><p id="published-rename-warning" class="muted small-copy" hidden>This addon is published. The Explorer title stays unchanged until you publish the renamed draft.</p><div class="dialog-actions"><button type="button" id="cancel-project-rename" class="button">Cancel</button><button class="button primary">Save title</button></div></form></dialog>` });
   const root = document.querySelector('#project-list');
   const drafts = Object.values(state.editorDrafts);
-  const projects = drafts.map(draft => ({ id:draft.id, config:draft.config, files:draft.files, title:draft.config?.title || draft.id, description:addonSummary(draft.config,draft.files) || 'Local editor draft', source:'draft', published:Boolean(draft.publishedAt), badge:state.addons[draft.id]?'Installed · editable project':'Draft' }));
-  root.innerHTML = projects.map(item => `<a class="project-picker-card card" data-addon-id="${escapeHtml(item.id)}" data-addon-title="${escapeHtml(item.title)}" data-published="${item.published}" href="editor.html?id=${encodeURIComponent(item.id)}&source=${item.source}">${renderAddonLogo(item.config,item.files,38)}<div class="project-picker-copy"><b>${escapeHtml(item.title)}</b><span>${escapeHtml(item.description)}</span></div><span class="badge">${item.published?'Published · ':''}${escapeHtml(item.badge)}</span></a>`).join('');
+  const projects = drafts.map(draft => ({ id:draft.id, config:draft.config, files:draft.files, title:draft.config?.title || draft.id, description:addonSummary(draft.config,draft.files) || 'Local editor draft', source:'draft', published:Boolean(draft.publishedAt), installed:Boolean(state.addons[draft.id]) }));
+  root.innerHTML = projects.map(item => `<a class="project-picker-card card" data-addon-id="${escapeHtml(item.id)}" data-addon-title="${escapeHtml(item.title)}" data-published="${item.published}" href="editor.html?id=${encodeURIComponent(item.id)}&source=${item.source}">${renderAddonLogo(item.config,item.files,38)}<div class="project-picker-copy"><b>${escapeHtml(item.title)}</b><span>${escapeHtml(item.description)}</span></div><span class="project-picker-status" title="${item.published ? 'Published' : 'Draft'}${item.installed ? ' · Installed' : ''}">${item.published ? '<span class="badge green">Published</span>' : '<span class="badge">Draft</span>'}${item.installed ? '<span class="badge">Installed</span>' : ''}</span></a>`).join('');
   document.querySelector('#project-empty').hidden = projects.length > 0;
   const menu=document.querySelector('#addon-project-menu');
   const renameDialog=document.querySelector('#addon-project-rename');

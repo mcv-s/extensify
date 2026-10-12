@@ -6,7 +6,7 @@ if (!inExtension) document.body.classList.add('standalone-document');
 
 const policy = `# Extensify Privacy Policy
 
-**Last updated: October 11, 2026**
+***Last updated: October 12, 2026***
 
 Extensify is a browser extension for Chrome and Edge. The extension is designed to keep ordinary browsing and addon data on your device. This policy explains what the extension stores, what happens when you choose optional online features, and what control you have.
 
@@ -22,9 +22,9 @@ Addon code runs in your browser and may access page content on the websites you 
 
 ## Optional creator account and publishing
 
-Browsing the catalog and installing public addons do not require an account. Creator sign-in and publishing use the Supabase project configured for this Extensify release. If you sign in, your email address and authentication data are processed by Supabase to provide the account session. Extensify stores session tokens in browser extension storage so it can keep you signed in; tokens are excluded from data exports.
+Browsing the catalog and installing public addons do not require an account. Creator sign-in and publishing use the Supabase project configured for this Extensify release. If you sign in, your email address and authentication data are processed by Supabase to provide the account session and are subject to their privacy policy as well. Extensify stores session tokens in browser extension storage so it can keep you signed in; tokens are excluded from data exports.
 
-When a creator publishes, the addon package and listing information are uploaded to the configured Supabase project and made available through the public catalog. Published addon content can be downloaded by users. Do not include secrets or personal data in addon packages. The project operator and Supabase process data under their applicable terms and privacy practices.
+When a creator publishes, the addon package and listing information are uploaded to the configured Supabase project and made available through the public catalog. Published addon content can be downloaded by users. Do not include secrets or personal data in addon packages. Supabase processes data under their applicable terms and privacy practices.
 
 ## Network requests
 
@@ -32,17 +32,17 @@ Extensify may contact the configured Supabase project to retrieve public addon l
 
 ## Your choices and retention
 
-You can use catalog browsing and installation without signing in. You can sign out in Settings, uninstall addons, or use **Reset local data** to remove Extensify's local state and saved session from this browser profile. Resetting local data does not delete packages already published to Supabase. Published content removal follows the configured project’s creator/admin workflow.
+You can use catalog browsing and installation without signing in. You can sign out in [settings](/settings.html), uninstall addons, or use **Reset local data** to remove Extensify's local state and saved session from this browser profile. Resetting local data does not delete packages already published to Supabase.
 
 Uninstalling the extension or clearing browser data may remove locally stored Extensify information, subject to browser behavior and any exports you have saved. Extensify maintainers do not have access to data that remains only in your browser profile.
 
 ## Children's privacy
 
-Extensify is a general-purpose developer and browser utility, not directed to children. The extension does not knowingly collect personal information from children.
+Extensify is a general-purpose developer and browser utility, and is not designed for children. The extension does not knowingly collect personal information from children and treats them as any other user.
 
 ## Changes and contact
 
-This policy may be updated when Extensify's behavior or services change. The current version is published on the Extensify website. For privacy questions, contact the project maintainer through the Extensify GitHub repository.
+This policy may be updated when Extensify's behavior or services change. The current version is published on [github](https://github.com/mcv-s/extensify). For privacy questions, contact us there.
 
 See also the [Extensify documentation](./docs.html) and [quickstart guide.](https://mcv-s.github.io/extensify/quickstart.html).
 `;
@@ -57,7 +57,7 @@ const navigation = headings.filter(heading => heading.tagName === 'H2')
 const content = `<div class="docs-layout"><nav class="docs-toc" aria-label="Policy sections"><span>PRIVACY</span>${navigation}</nav>${article.outerHTML}</div>`;
 
 if (inExtension) {
-  await renderShell({ active:'', title:'Privacy Policy', content });
+  await renderShell({ active:'privacy', title:'Privacy Policy', content });
   document.querySelector('.page-content').classList.add('docs-page');
 } else {
   document.title = 'Privacy Policy - Extensify';

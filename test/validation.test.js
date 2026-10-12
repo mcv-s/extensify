@@ -38,6 +38,13 @@ test('settings schema validates choices and bounds', () => {
   assert.deepEqual(validateSettings({theme:{type:'select'},count:{type:'number',min:4,max:2}}),['Select setting “theme” needs choices.','Setting “count” has min greater than max.']);
 });
 
+test('settings schema accepts display names and info text', () => {
+  assert.deepEqual(validateSettings({
+    sideBarKeybind: { type: 'string', default: 'Ctrl+B', displayName: 'Keybind to open sidebar:', info: 'Shortcut help.' }
+  }), []);
+  assert.match(validateSettings({ setting: { type: 'string', displayName: 42, info: true } }).join(' '), /displayName.*info/);
+});
+
 test('paths reject traversal and normalize separators', () => {
   assert.equal(normalizePath('assets\\icon.svg'),'assets/icon.svg');
   assert.throws(()=>normalizePath('../escape.js'),/Unsafe file path/);

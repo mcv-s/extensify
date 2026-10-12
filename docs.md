@@ -81,7 +81,13 @@ The configuration describes the addon and its runtime declarations. It is the so
     "enabled": { "type": "boolean", "label": "Enabled", "default": true },
     "maxItems": { "type": "number", "label": "Maximum items", "default": 10, "min": 1, "max": 100 },
     "selector": { "type": "textarea", "label": "Custom selector", "default": ".item" },
-    "internalMode": { "type": "string", "default": "standard", "visibility": false }
+    "internalMode": { "type": "string", "default": "standard", "visibility": false },
+    "sideBarKeybind": {
+      "type": "string",
+      "default": "Ctrl+B",
+      "displayName": "Keybind to open sidebar:",
+      "info": "The keyboard shortcut used to toggle the sidebar."
+    }
   }
 }
 ```
@@ -110,7 +116,7 @@ Content script `matches` use browser-style patterns such as `https://example.com
 
 ### Settings and environment values
 
-Each key in `env` describes a default runtime value and, unless hidden, a generated control on the installed addon’s detail page. Supported field types include boolean, string, textarea, number, slider, select, color, URL, password, and JSON. Fields can define `label`, `description`, `placeholder`, `default`, `visibility`, `min`, `max`, `step`, `choices`, `group`, and `order` where appropriate. Select settings require choices. Values are validated and saved per addon on this device.
+Each key in `env` describes a default runtime value and, unless hidden, a generated control on the installed addon’s detail page. Supported field types include boolean, string, textarea, number, slider, select, color, URL, password, and JSON. Fields can define `displayName`, `info`, `placeholder`, `default`, `visibility`, `min`, `max`, `step`, `choices`, `group`, and `order` where appropriate. `displayName` changes the title shown above the control; when omitted, the internal key is shown. `info` adds a small grey explanation below the title. The older `label` and `description` names remain supported as fallbacks. Select settings require choices. Values are validated and saved per addon on this device.
 
 Set `visibility` to `false` to omit a value from the user-facing settings form. This only hides the control: configuration and runtime values delivered to a browser can be inspected. Do not store passwords, API secrets, or other credentials in addon settings.
 

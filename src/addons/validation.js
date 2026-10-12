@@ -29,6 +29,8 @@ export function validateSettings(env = {}) {
   for (const [key, setting] of Object.entries(env)) {
     if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(key)) errors.push(`Invalid setting key: ${key}`);
     if (!setting || typeof setting !== 'object' || !['boolean','string','textarea','number','slider','select','color','url','password','json'].includes(setting.type)) errors.push(`Setting “${key}” has an unsupported type.`);
+    if (setting?.displayName != null && (typeof setting.displayName !== 'string' || !setting.displayName.trim())) errors.push(`Setting “${key}” displayName must be a non-empty string.`);
+    if (setting?.info != null && typeof setting.info !== 'string') errors.push(`Setting “${key}” info must be a string.`);
     if (setting?.type === 'select' && (!Array.isArray(setting.choices) || !setting.choices.length)) errors.push(`Select setting “${key}” needs choices.`);
     if (setting?.min != null && setting?.max != null && Number(setting.min) > Number(setting.max)) errors.push(`Setting “${key}” has min greater than max.`);
   }
