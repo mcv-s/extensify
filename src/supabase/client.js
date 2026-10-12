@@ -1,4 +1,5 @@
-import { getState, updateState } from '../storage/state.js';
+import { updateState } from '../storage/state.js';
+import { authenticatedFetch, clearAuthSession, getValidAccessToken, readAuthSession, saveAuthSession } from '../auth/session.js';
 
 let configPromise;
 export function getSupabaseConfig() {
@@ -22,28 +23,44 @@ function authApi(config) {
     signInWithPassword: async ({ email, password }) => {
       try {
         const session = await authRequest(config, 'token?grant_type=password', { email, password });
-        await updateState(state => ({ ...state, auth: { user: session.user ? { id: session.user.id, email: session.user.email } : null, accessToken: session.access_token, refreshToken: session.refresh_token, expiresAt: session.expires_at ?? Math.floor(Date.now() / 1000) + (session.expires_in ?? 3600) } }));
+        await saveAuthSession(session);
+        await updateState(state => ({ ...state, auth: { user: session.user ? { id: session.user.id, email: session.user.email } : null } }));
         return { data: session, error: null };
       } catch (error) { return { data: null, error }; }
     },
     getUser: async () => {
-      const state = await getState();
-      if (!state.auth?.accessToken) return { data: { user: null }, error: null };
-      const response = await fetch(`${config.url}/auth/v1/user`, { headers: { apikey: config.anonKey, Authorization: `Bearer ${state.auth.accessToken}` } });
-      if (response.status === 401 && state.auth.refreshToken) {
-        const refreshed = await authRequest(config, 'token?grant_type=refresh_token', { refresh_token: state.auth.refreshToken });
-        await updateState(s => ({ ...s, auth: { ...s.auth, accessToken: refreshed.access_token, refreshToken: refreshed.refresh_token, expiresAt: refreshed.expires_at } }));
-        return { data: { user: refreshed.user }, error: null };
+      try {
+        const token = await getValidAccessToken(config);
+        if (!token) {
+          await updateState(state => ({ ...state, auth:{ user:null } }));
+          return { data: { user: null }, error: null };
+        }
+        const response = await authenticatedFetch(config, `${config.url}/auth/v1/user`, { headers:{ apikey:config.anonKey } });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          if (response.status === 401) {
+            await clearAuthSession();
+            await updateState(state => ({ ...state, auth:{ user:null } }));
+            return { data:{ user:null }, error:null };
+          }
+          return { data:{ user:null }, error:new Error(result.message || 'Could not check your Supabase session.') };
+        }
+        await updateState(state => ({ ...state, auth:{ user:result ? { id:result.id, email:result.email } : null } }));
+        return { data:{ user:result }, error:null };
+      } catch (error) {
+        // Keep the local identity/session through temporary network errors; an
+        // invalid refresh token is already cleared by refreshAuthSession.
+        if (!await readAuthSession()) await updateState(state => ({ ...state, auth:{ user:null } }));
+        return { data:{ user:null }, error };
       }
-      if (!response.ok) return { data: { user: null }, error: new Error('Your Supabase session expired. Sign in again.') };
-      return { data: { user: await response.json() }, error: null };
     },
     signOut: async () => {
       try {
-        const state = await getState();
-        if (state.auth?.accessToken) await fetch(`${config.url}/auth/v1/logout`, { method: 'POST', headers: { apikey: config.anonKey, Authorization: `Bearer ${state.auth.accessToken}` } });
+        const token = await getValidAccessToken(config);
+        if (token) await fetch(`${config.url}/auth/v1/logout`, { method:'POST', headers:{ apikey:config.anonKey, Authorization:`Bearer ${token}` } });
+        await clearAuthSession();
         return { error: null };
-      } catch (error) { return { error }; }
+      } catch { await clearAuthSession(); return { error:null }; }
     }
   };
 }
@@ -75,8 +92,7 @@ export class RestQuery {
   delete() { this.method = 'DELETE'; this.headers.Prefer = 'return=representation'; return this; }
   then(resolve, reject) { return this.execute().then(resolve, reject); }
   async execute() {
-    const state = await getState();
-    const response = await fetch(`${this.config.url}/rest/v1/${this.table}?${this.params}`, { method: this.method, headers: { apikey: this.config.anonKey, ...(state.auth?.accessToken ? { Authorization: `Bearer ${state.auth.accessToken}` } : {}), 'Content-Type': 'application/json', ...this.headers }, body: this.body === undefined ? undefined : JSON.stringify(this.body) });
+    const response = await authenticatedFetch(this.config, `${this.config.url}/rest/v1/${this.table}?${this.params}`, { method:this.method, headers:{ apikey:this.config.anonKey, 'Content-Type':'application/json', ...this.headers }, body:this.body === undefined ? undefined : JSON.stringify(this.body) });
     const text = await response.text(); let data = null;
     try { data = text ? JSON.parse(text) : null; } catch { data = text; }
     if (!response.ok) return { data: null, error: new Error(data?.message || `Supabase request failed (${response.status}).`) };
@@ -93,24 +109,23 @@ export class RestQuery {
 export async function supabaseAuth(action, payload) {
   const config = await getSupabaseConfig();
   if (!config.url?.startsWith('https://') || !config.anonKey || config.anonKey.startsWith('YOUR_')) throw new Error('Add your Supabase URL and public anon key to supabase.json first.');
-  const state = await getState();
-  const response = await fetch(`${config.url}/auth/v1/${action}`, { method: 'POST', headers: { apikey: config.anonKey, 'Content-Type': 'application/json', ...(state.auth?.accessToken ? { Authorization: `Bearer ${state.auth.accessToken}` } : {}) }, body: JSON.stringify(payload ?? {}) });
+  const response = await authenticatedFetch(config, `${config.url}/auth/v1/${action}`, { method:'POST', headers:{ apikey:config.anonKey, 'Content-Type':'application/json' }, body:JSON.stringify(payload ?? {}) });
   const text = await response.text(); let data = null; try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!response.ok) throw new Error(data?.msg || data?.message || `Supabase auth failed (${response.status}).`);
   return data;
 }
 
 export async function supabaseUser() {
-  const config = await getSupabaseConfig(); const state = await getState();
-  if (!state.auth?.accessToken) return null;
-  const response = await fetch(`${config.url}/auth/v1/user`, { headers: { apikey: config.anonKey, Authorization: `Bearer ${state.auth.accessToken}` } });
+  const config = await getSupabaseConfig(); const token = await getValidAccessToken(config);
+  if (!token) return null;
+  const response = await authenticatedFetch(config, `${config.url}/auth/v1/user`, { headers:{ apikey:config.anonKey } });
   if (!response.ok) return null;
   return response.json();
 }
 
 export async function supabaseRequest(path, { method = 'GET', body, prefer = 'return=representation' } = {}) {
-  const config = await getSupabaseConfig(); const state = await getState();
-  const response = await fetch(`${config.url}/rest/v1/${path}`, { method, headers: { apikey: config.anonKey, ...(state.auth?.accessToken ? { Authorization: `Bearer ${state.auth.accessToken}` } : {}), 'Content-Type': 'application/json', Prefer: prefer }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const config = await getSupabaseConfig();
+  const response = await authenticatedFetch(config, `${config.url}/rest/v1/${path}`, { method, headers:{ apikey:config.anonKey, 'Content-Type':'application/json', Prefer:prefer }, body:body === undefined ? undefined : JSON.stringify(body) });
   const text = await response.text(); let data = null; try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!response.ok) throw new Error(data?.message || `Supabase request failed (${response.status}).`);
   return data;

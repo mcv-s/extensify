@@ -1,10 +1,10 @@
-export function renderMarkdown(markdown = '') {
+export function renderMarkdown(markdown = '', { headingOffset = 1 } = {}) {
   const lines = String(markdown).replace(/\r\n?/g, '\n').split('\n');
   const output = [];
   let paragraph = [];
   let listType = '';
   let listItems = [];
-  let codeLines = null;
+  let codeBlock = null;
 
   const flushParagraph = () => {
     if (paragraph.length) output.push(`<p>${inline(paragraph.join(' '))}</p>`);
@@ -16,18 +16,19 @@ export function renderMarkdown(markdown = '') {
   };
 
   for (const line of lines) {
-    if (line.trimStart().startsWith('```')) {
+    const fence = line.trimStart().match(/^```\s*([\w+-]*)/);
+    if (fence) {
       flushParagraph(); flushList();
-      if (codeLines) { output.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`); codeLines = null; }
-      else codeLines = [];
+      if (codeBlock) { output.push(codeHtml(codeBlock)); codeBlock = null; }
+      else codeBlock = { language:fence[1], lines:[] };
       continue;
     }
-    if (codeLines) { codeLines.push(line); continue; }
+    if (codeBlock) { codeBlock.lines.push(line); continue; }
     const heading = line.match(/^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/);
     const unordered = line.match(/^\s*[-*+]\s+(.+)$/);
     const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/);
     if (!line.trim()) { flushParagraph(); flushList(); continue; }
-    if (heading) { flushParagraph(); flushList(); const level = Math.min(heading[1].length + 1, 6); output.push(`<h${level}>${inline(heading[2])}</h${level}>`); continue; }
+    if (heading) { flushParagraph(); flushList(); const level = Math.max(1, Math.min(heading[1].length + headingOffset, 6)); output.push(`<h${level}>${inline(heading[2])}</h${level}>`); continue; }
     if (unordered || ordered) {
       flushParagraph(); const nextType = ordered ? 'ol' : 'ul';
       if (listType && listType !== nextType) flushList();
@@ -35,9 +36,14 @@ export function renderMarkdown(markdown = '') {
     }
     flushList(); paragraph.push(line.trim());
   }
-  if (codeLines) output.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+  if (codeBlock) output.push(codeHtml(codeBlock));
   flushParagraph(); flushList();
   return output.join('');
+}
+
+function codeHtml(block) {
+  const language = /^[\w+-]*$/.test(block.language) ? block.language : '';
+  return `<pre><code${language ? ` class="language-${language}"` : ''}>${escapeHtml(block.lines.join('\n'))}</code></pre>`;
 }
 
 function inline(value) {

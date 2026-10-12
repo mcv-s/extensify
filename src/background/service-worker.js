@@ -58,7 +58,10 @@ async function syncAddon(addonId, removedAddon) {
       if (!addon.enabled || removedAddon) {
         for (const [index, entry] of (addon.config.contentScripts ?? []).entries()) if (entry.matches?.some(pattern => matchesUrl(pattern, tab.url))) {
           const instanceId = runtimeInstanceId(addonId, index);
-          await chrome.userScripts.execute({ target: { tabId: tab.id, allFrames: Boolean(entry.allFrames) }, world: 'USER_SCRIPT', worldId: worldIdFor(addonId), js: [{ code: `globalThis.__extensifyDisposers?.[${JSON.stringify(instanceId)}]?.(); delete globalThis.__extensifyDisposers?.[${JSON.stringify(instanceId)}]; document.getElementById(${JSON.stringify(`extensify-style-${instanceId}`)})?.remove();` }] });
+          const instanceJson = JSON.stringify(instanceId);
+          const stylePrefixJson = JSON.stringify(`extensify-style-${instanceId}`);
+          const cleanupCode = `globalThis.__extensifyDisposers?.[${instanceJson}]?.(); delete globalThis.__extensifyDisposers?.[${instanceJson}]; document.querySelectorAll('[id^=' + ${stylePrefixJson} + ']').forEach(style => style.remove());`;
+          await chrome.userScripts.execute({ target: { tabId: tab.id, allFrames: Boolean(entry.allFrames) }, world: 'USER_SCRIPT', worldId: worldIdFor(addonId), js: [{ code: cleanupCode }] });
         }
       } else {
         for (const [index, entry] of (addon.config.contentScripts ?? []).entries()) if (entry.matches?.some(pattern => matchesUrl(pattern, tab.url))) {

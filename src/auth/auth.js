@@ -20,6 +20,6 @@ export async function signOut() {
   if (!client) return;
   const { error } = await client.auth.signOut();
   if (error) throw error;
-  await updateState(state => ({ ...state, auth: { user: null, accessToken: null, refreshToken: null, expiresAt: null } }));
+  await updateState(state => ({ ...state, auth: { user: null } }));
 }
 

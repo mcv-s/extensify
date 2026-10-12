@@ -17,6 +17,11 @@ test('state migration restores safe defaults and known namespace shapes', () => 
   assert.deepEqual(state.editorDrafts,{});
 });
 
+test('state migration strips credentials from exportable account metadata', () => {
+  const state=migrateState({schemaVersion:3,auth:{user:{id:'user-1',email:'creator@example.com'},accessToken:'access',refreshToken:'refresh',expiresAt:123}});
+  assert.deepEqual(state.auth,{user:{id:'user-1',email:'creator@example.com'}});
+});
+
 test('state migration moves legacy addon descriptions to the current format and uses a Phosphor default logo', () => {
   const oldConfig={manifestVersion:1,id:'legacy-addon',title:'Legacy Addon',description:'A longer old description.',version:'1.0.0',author:{name:'Creator'},icon:'assets/icon.svg',permissions:[],contentScripts:[],env:{}};
   const files={'config.json':JSON.stringify(oldConfig),'assets/icon.svg':'<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>'};

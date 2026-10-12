@@ -1,5 +1,6 @@
 import { CURRENT_SCHEMA_VERSION, getState, migrateState, updateState, STATE_KEY } from '../storage/state.js';
 import { validatePackage } from '../addons/validation.js';
+import { clearAuthSession } from '../auth/session.js';
 
 export const EXPORT_FORMAT = 'extensify-user-data';
 export async function exportData() {
@@ -24,6 +25,7 @@ export async function importData(payload) {
   return restored;
 }
 export async function resetData() {
+  await clearAuthSession();
   const empty = migrateState({ schemaVersion: CURRENT_SCHEMA_VERSION });
   if (globalThis.chrome?.storage?.local) await chrome.storage.local.remove(STATE_KEY);
   else globalThis.localStorage?.removeItem(STATE_KEY);

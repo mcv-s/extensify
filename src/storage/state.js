@@ -1,4 +1,5 @@
 import { upgradeAddonPackage } from '../addons/metadata.js';
+import { saveAuthSession } from '../auth/session.js';
 
 export const STATE_KEY = 'extensify.state.v1';
 export const CURRENT_SCHEMA_VERSION = 3;
@@ -45,14 +46,18 @@ export function migrateState(value) {
     const upgraded = upgradeAddonPackage(draft.config, draft.files);
     state.editorDrafts[id] = { ...draft, config: upgraded.config, files: upgraded.files };
   }
-  state.auth = { ...defaults().auth, ...(value.auth ?? {}) };
+  state.auth = { user:value.auth?.user ? { id:value.auth.user.id, email:value.auth.user.email } : null };
   return state;
 }
 
 export async function getState() {
   const raw = await readRaw();
   const migrated = migrateState(raw);
-  if (!raw || raw.schemaVersion !== migrated.schemaVersion) await writeRaw(migrated);
+  const hasLegacySession = Boolean(raw?.auth?.accessToken || raw?.auth?.refreshToken);
+  if (hasLegacySession) {
+    try { await saveAuthSession(raw.auth); } catch { /* Drop legacy credentials rather than keep them in exportable state. */ }
+  }
+  if (!raw || raw.schemaVersion !== migrated.schemaVersion || hasLegacySession) await writeRaw(migrated);
   return migrated;
 }
 

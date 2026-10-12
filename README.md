@@ -3,6 +3,8 @@ Addon "store" which isn't a store
 
 Enables you to have lots of fun "additions" to your browser.
 
+The complete, current user and addon-author guide is maintained in [`docs.md`](docs.md) and displayed in the extension’s Documentation page. Keep it updated whenever product behavior, package format, runtime API, permissions, settings, publishing, storage, or Supabase setup changes. See [`AGENTS.md`](AGENTS.md) for the contributor rule.
+
 These are simple little tweaks, not things to make entire extensions about - so you can include them here!
 
 ## Load the extension

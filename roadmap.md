@@ -107,3 +107,14 @@ Latest UI follow-up: Explorer now fills missing/default addon listing logos from
 
 Catalog bugfix: the extension's small REST client now supports PostgREST in() filtering, used to hydrate any missing/default catalog logo from version config. Regression test exercises the exact REST filter. Root manifest now declares 16/32/48/128 PNG toolbar icons in icons/, rendered to match logo.svg because Chromium manifest icons require raster image files.
 
+Latest documentation/settings update: Settings uses the standard full-width page layout and account controls are signed-out-only; authenticated users see their account and sign-out. Root `docs.md` is the canonical comprehensive guide, rendered on the Documentation page by the local Markdown renderer. Its left navigation is generated from section headings; code fences receive copy buttons. Keep `docs.md` accurate in every product change (see root `AGENTS.md`). Do not fetch a CDN Markdown parser because extension CSP requires executable code to remain local.
+
+
+Password-manager follow-up: Settings sign-in is a labeled POST login form with named username/password fields and standard autocomplete=username/current-password hints. docs.md notes browser password-manager support may vary for extension pages.
+
+
+Auth session hardening: password is never persisted by Extensify. Supabase access/refresh tokens are stored under a separate Chrome storage.local key restricted to TRUSTED_CONTEXTS, omitted from Extensify state export, and cleared on reset/sign-out. Legacy state tokens migrate out on next load. Session refresh happens proactively within 60 seconds of expiry and retries authenticated 401 requests. See docs.md for the storage security limitation; extension profile/developer-tools access is not cryptographically protected.
+
+
+Settings auth visibility follow-up: cached signed-in identity stays visible during temporary Supabase/network check failures, while confirmed sign-out reveals the login form. Added explicit display:none!important for hidden login/sign-out controls because shared setting-field display rules can override the HTML hidden state.
+
