@@ -8,10 +8,13 @@ Extensify works without a user account or a build step. Browsing and installing 
 
 ## Install and open Extensify
 
-1. Open `chrome://extensions` in Chrome or `edge://extensions` in Edge.
-2. Turn on Developer mode.
-3. Choose **Load unpacked** and select the workspace folder containing `manifest.json`.
-4. Pin Extensify from the browser’s extensions menu to open its popup quickly.
+1. [Download the Extensify ZIP](https://github.com/mcv-s/extensify/archive/refs/heads/main.zip) and unzip it.
+2. Open `chrome://extensions` in Chrome or `edge://extensions` in Edge.
+3. Turn on Developer mode.
+4. Choose **Load unpacked** and select the folder containing `manifest.json`.
+5. Pin Extensify from the browser’s extensions menu to open its popup quickly.
+
+The [quickstart page](quickstart.html) has the download button and a visual walk-through of these steps. If you open the project’s web pages outside the installed extension, they redirect to quickstart because the full interface needs the extension’s browser storage and APIs.
 
 After extension source or manifest changes, return to the extensions page and click **Reload** on Extensify. The popup opens a new full-page Extensify tab. The sidebar links to Home, Explorer, Installed, Editor, Settings, and Documentation. The sidebar button or Ctrl+B toggles it; Settings chooses whether it collapses to icons or hides completely.
 
