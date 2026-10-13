@@ -2,6 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAddonTemplate } from '../src/editor/template.js';
 import { matchesUrl, normalizePath, validatePackage, validateSettings, validateSvg } from '../src/addons/validation.js';
+import { renderSettingsForm } from '../src/components/settings-form.js';
+
+test('settings form tolerates addons with an empty env object', () => {
+  assert.doesNotThrow(() => renderSettingsForm({ config: { env: {} }, settings: {} }, null));
+});
 
 test('default addon template passes package validation', () => {
   const files=createAddonTemplate();

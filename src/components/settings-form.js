@@ -1,6 +1,7 @@
 import { updateAddonSettings } from '../addons/install.js';
 
 export function renderSettingsForm(addon, root) {
+  if (!root) return;
   root.replaceChildren();
   const env = addon.config.env ?? {};
   const entries = Object.entries(env).filter(([, schema]) => schema.visibility !== false);
