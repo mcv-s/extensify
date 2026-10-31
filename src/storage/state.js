@@ -44,7 +44,10 @@ export function migrateState(value) {
   for (const [id, draft] of Object.entries(state.editorDrafts)) {
     if (!draft?.config || !draft?.files) continue;
     const upgraded = upgradeAddonPackage(draft.config, draft.files);
-    state.editorDrafts[id] = { ...draft, config: upgraded.config, files: upgraded.files };
+    // The object key is the canonical identity. Older drafts were sometimes
+    // saved without an `id` field, even though every caller addressed them by
+    // this key. Keep the record self-contained for picker/context-menu code.
+    state.editorDrafts[id] = { ...draft, id, config: upgraded.config, files: upgraded.files };
   }
   state.auth = { user:value.auth?.user ? { id:value.auth.user.id, email:value.auth.user.email } : null };
   return state;
@@ -86,4 +89,4 @@ export async function getEffectiveTheme() {
 }
 export const getInstalledAddons = async () => Object.values((await getState()).addons);
 export const getInstalledAddon = async id => (await getState()).addons[id] ?? null;
-export const saveDraft = (id, draft) => updateState(s => ({ ...s, editorDrafts: { ...s.editorDrafts, [id]: draft } }));
+export const saveDraft = (id, draft) => updateState(s => ({ ...s, editorDrafts: { ...s.editorDrafts, [id]: { ...draft, id } } }));

@@ -18,7 +18,7 @@ The [quickstart page](quickstart.html) has the download button and a visual walk
 
 After extension source or manifest changes, return to the extensions page and click **Reload** on Extensify. The popup opens a new full-page Extensify tab. The sidebar links to Home, Explorer, Installed, Editor, Settings, and Documentation. The sidebar button or Ctrl+B toggles it; Settings chooses whether it collapses to icons or hides completely.
 
-The toolbar popup shows installed addons and lets you enable or disable each one. It also links to the full interface and Settings.
+The toolbar popup shows installed addons and lets you enable or disable each one. Addons with visible settings have a caret to expand those controls in place. Boolean settings use compact same-row switches; other controls remain stacked, and setting explanations appear when you hover their display names. It also links to the full interface and Settings.
 
 ## Browse and install addons
 
@@ -59,7 +59,7 @@ ZIP import checks the archive and preserves filenames and text contents. ZIP exp
 
 ## `config.json` reference
 
-The configuration describes the addon and its runtime declarations. It is the source of truth for title, version, author, icon, permissions, content scripts, and settings. Keep the full user-facing explanation in `addon-description.md`.
+The configuration describes the addon and its runtime declarations. It is the source of truth for title, optional `short-description`, version, author, icon, permissions, content scripts, and settings. Keep the full user-facing explanation in `addon-description.md`. When present, `short-description` is used for compact Explorer listings; addons without it use the beginning of `addon-description.md` instead.
 
 ```json
 {
@@ -134,7 +134,7 @@ if (settings.enabled) {
 }
 ```
 
-Storage methods are scoped to the addon ID. Use the runtime API rather than reaching into Extensify’s storage namespace directly. Declared permissions are available for capability checks and user-facing transparency; the current trusted-creator runtime does not fully sandbox addon JavaScript. `onDispose` hooks allow a script to clean up when the addon is disabled or refreshed.
+Storage methods are scoped to the addon ID. Use the runtime API rather than reaching into Extensify’s storage namespace directly. Declared permissions are available for capability checks and user-facing transparency; the current trusted-creator runtime does not fully sandbox addon JavaScript. `onDispose` hooks allow a script to clean up when the addon is disabled or refreshed. Extensify also tracks standard DOM event listeners, intervals, timeouts, and animation frames created by an addon instance so they can be stopped when that instance is refreshed or replaced.
 
 Addon files are available to runtime code by package path. For example, `fetch('/123.css')` or `fetch('assets/data.json')` reads that file from the installed addon when it exists. These package-local GET and HEAD requests return a normal `Response` with a useful content type. A stylesheet link such as `<link rel="stylesheet" href="/123.css">` is also resolved from the package and applied as an injected style, rather than requesting that path from the current website. Other URLs continue through the browser's native `fetch`, with the page's usual CORS and permission rules. In declared CSS files, local `@import` references are inlined and local `url(...)` assets are embedded, so they do not resolve against the website's origin.
 

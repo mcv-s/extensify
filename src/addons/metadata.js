@@ -3,7 +3,10 @@ export function addonDescription(config, files = {}) {
 }
 
 export function addonSummary(config, files = {}, maxLength = 180) {
-  const text = addonDescription(config, files)
+  const source = typeof config?.['short-description'] === 'string' && config['short-description'].trim()
+    ? config['short-description']
+    : addonDescription(config, files);
+  const text = source
     .replace(/^```[\s\S]*?```/gm, ' ')
     .replace(/^\s{0,3}#{1,6}\s+/gm, '')
     .replace(/!?\[([^\]]+)\]\([^)]+\)/g, '$1')

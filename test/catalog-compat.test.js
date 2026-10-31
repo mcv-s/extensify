@@ -36,6 +36,15 @@ test('catalog fills missing or default logo metadata from published version conf
   assert.deepEqual(rows[0].logo,{type:'icon',name:'Sparkle',color:'#b045ee'});
 });
 
+test('catalog prefers short descriptions from the current published version config', async () => {
+  const client={from(table){
+    if(table==='addons')return{select(){return this},eq(){return this},order(){return this},limit(){return Promise.resolve({data:[{id:'sample-addon',title:'Sample',description:'Long description',author_name:'Creator',logo:{type:'icon',name:'Sparkle',color:'#b045ee'},current_version_id:'version-1'}],error:null})}};
+    return{select(){return this},in(){return Promise.resolve({data:[{id:'version-1',config:{'short-description':'A concise listing.'}}],error:null})}};
+  }};
+  const rows=await readPublishedAddonRows(client);
+  assert.equal(rows[0].description,'A concise listing.');
+});
+
 test('REST query supports PostgREST in filters used for logo hydration', async () => {
   const originalFetch=globalThis.fetch;
   let requestedUrl='';

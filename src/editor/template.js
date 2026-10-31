@@ -1,6 +1,6 @@
 export function createAddonTemplate() {
   const config = {
-    manifestVersion: 1, id: 'my-first-addon', title: 'My First Addon', version: '1.0.0', author: { name: 'Your name' }, logo: { type: 'icon', name: 'PuzzlePiece', color: '#3ecf8e' },
+    manifestVersion: 1, id: 'my-first-addon', title: 'My First Addon', 'short-description': 'A concise summary of what this addon does.', version: '1.0.0', author: { name: 'Your name' }, logo: { type: 'icon', name: 'PuzzlePiece', color: '#3ecf8e' },
     permissions: ['contentScript', 'storage', 'settings'],
     contentScripts: [{ matches: ['https://example.com/*'], js: ['content.js'], css: ['content.css'], runAt: 'document_idle', allFrames: false }],
     env: { greeting: { type: 'string', displayName: 'Greeting', info: 'Text shown by this addon.', default: 'Hello from Extensify', visibility: true }, enabled: { type: 'boolean', displayName: 'Show greeting', default: true, visibility: true }, internalMode: { type: 'string', default: 'standard', visibility: false } }

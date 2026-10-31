@@ -516,6 +516,17 @@ input[type=checkbox][data-setting]:checked:after {
     font-size: 12px
 }
 
+.setting-toggle-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px
+}
+
+.setting-toggle-field .switch-row {
+    width: auto
+}
+
 .setting-label {
     font-weight: 500
 }

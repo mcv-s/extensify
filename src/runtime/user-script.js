@@ -135,6 +135,51 @@ export function buildUserScript(addon, source, cssPaths = [], instanceId = addon
     };
     resourceState.patched = true;
   }
+  const runtimeManager = globalThis.__extensifyRuntimeManager ??= (() => {
+    const state = { active: null, instances: new Map(), patched: false };
+    const sameOptions = (left, right) => left === right || JSON.stringify(left) === JSON.stringify(right);
+    const withInstance = (instance, callback) => { const previous = state.active; state.active = instance; try { return callback(); } finally { state.active = previous; } };
+    const stop = instance => {
+      if (!instance?.active) return;
+      instance.active = false;
+      for (const record of instance.listeners.splice(0)) record.target.removeEventListener(record.type, record.wrapped, record.options);
+      for (const id of instance.intervals) globalThis.clearInterval(id);
+      for (const id of instance.timeouts) globalThis.clearTimeout(id);
+      for (const id of instance.frames) globalThis.cancelAnimationFrame?.(id);
+      instance.intervals.clear(); instance.timeouts.clear(); instance.frames.clear();
+      if (state.instances.get(instance.id) === instance) state.instances.delete(instance.id);
+    };
+    const start = id => { stop(state.instances.get(id)); const instance = { id, active: true, listeners: [], intervals: new Set(), timeouts: new Set(), frames: new Set() }; state.instances.set(id, instance); return instance; };
+    if (!state.patched) {
+      state.patched = true;
+      const add = EventTarget.prototype.addEventListener;
+      const remove = EventTarget.prototype.removeEventListener;
+      EventTarget.prototype.addEventListener = function(type, listener, options) {
+        const instance = state.active;
+        if (!instance || typeof listener !== 'function') return add.call(this, type, listener, options);
+        const wrapped = function(...args) { if (!instance.active) return; return withInstance(instance, () => listener.apply(this, args)); };
+        instance.listeners.push({ target: this, type, listener, wrapped, options });
+        return add.call(this, type, wrapped, options);
+      };
+      EventTarget.prototype.removeEventListener = function(type, listener, options) {
+        const instance = state.active;
+        const record = instance?.listeners.find(item => item.target === this && item.type === type && item.listener === listener && sameOptions(item.options, options));
+        if (record) { instance.listeners.splice(instance.listeners.indexOf(record), 1); return remove.call(this, type, record.wrapped, record.options); }
+        return remove.call(this, type, listener, options);
+      };
+      const nativeSetInterval = globalThis.setInterval;
+      const nativeClearInterval = globalThis.clearInterval;
+      globalThis.setInterval = (handler, delay, ...args) => { const instance = state.active; if (!instance) return nativeSetInterval(handler, delay, ...args); const wrapped = typeof handler === 'function' ? (...callbackArgs) => withInstance(instance, () => handler(...callbackArgs)) : handler; const id = nativeSetInterval(wrapped, delay, ...args); instance.intervals.add(id); return id; };
+      globalThis.clearInterval = id => { for (const instance of state.instances.values()) instance.intervals.delete(id); return nativeClearInterval(id); };
+      const nativeSetTimeout = globalThis.setTimeout;
+      const nativeClearTimeout = globalThis.clearTimeout;
+      globalThis.setTimeout = (handler, delay, ...args) => { const instance = state.active; if (!instance) return nativeSetTimeout(handler, delay, ...args); const wrapped = typeof handler === 'function' ? (...callbackArgs) => { instance.timeouts.delete(id); return withInstance(instance, () => handler(...callbackArgs)); } : handler; const id = nativeSetTimeout(wrapped, delay, ...args); instance.timeouts.add(id); return id; };
+      globalThis.clearTimeout = id => { for (const instance of state.instances.values()) instance.timeouts.delete(id); return nativeClearTimeout(id); };
+      if (globalThis.requestAnimationFrame) { const nativeRequestAnimationFrame = globalThis.requestAnimationFrame; const nativeCancelAnimationFrame = globalThis.cancelAnimationFrame; globalThis.requestAnimationFrame = callback => { const instance = state.active; if (!instance) return nativeRequestAnimationFrame(callback); const id = nativeRequestAnimationFrame(timestamp => { instance.frames.delete(id); withInstance(instance, () => callback(timestamp)); }); instance.frames.add(id); return id; }; globalThis.cancelAnimationFrame = id => { for (const instance of state.instances.values()) instance.frames.delete(id); return nativeCancelAnimationFrame(id); }; }
+    }
+    return { start, stop, run: withInstance };
+  })();
+  const runtimeInstance = runtimeManager.start(instanceId);
   const declaredPermissions = Object.freeze(${permissions});
   let dispose = null;
   const request = async (method, key, value) => {
@@ -154,9 +199,9 @@ export function buildUserScript(addon, source, cssPaths = [], instanceId = addon
   });
   Object.defineProperty(globalThis, 'extensify', { configurable: true, value: runtime });
   globalThis.__extensifyDisposers ??= {};
-  globalThis.__extensifyDisposers[instanceId] = () => dispose?.();
-  try { (() => {
+  globalThis.__extensifyDisposers[instanceId] = () => { runtimeManager.stop(runtimeInstance); dispose?.(); };
+  try { runtimeManager.run(runtimeInstance, () => { (() => {
 ${source.split('\n').map(line => `    ${line}`).join('\n')}
-  })(); } catch (error) { runtime.log.error('Addon code failed', error); }
+  })(); }); } catch (error) { runtime.log.error('Addon code failed', error); }
 })();`;
 }

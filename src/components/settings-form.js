@@ -8,7 +8,7 @@ export function renderSettingsForm(addon, root) {
   if (!entries.length) { root.innerHTML = '<p class="muted">This addon has no configurable settings.</p>'; return; }
   for (const [key, schema] of entries) {
     const label = document.createElement('label');
-    label.className = 'setting-field';
+    label.className = schema.type === 'boolean' ? 'setting-field setting-toggle-field' : 'setting-field';
     const title = document.createElement('span'); title.className = 'setting-label'; title.textContent = schema.displayName ?? schema.label ?? key;
     let input;
     if (schema.type === 'boolean') { input = document.createElement('input'); input.type = 'checkbox'; input.checked = Boolean(addon.settings[key]); }
@@ -17,8 +17,8 @@ export function renderSettingsForm(addon, root) {
     else { input = document.createElement('input'); input.type = ({ number:'number',slider:'range',color:'color',url:'url',password:'password' })[schema.type] ?? 'text'; input.value = addon.settings[key] ?? schema.default ?? ''; if (schema.min != null) input.min = schema.min; if (schema.max != null) input.max = schema.max; if (schema.step != null) input.step = schema.step; if (schema.placeholder) input.placeholder = schema.placeholder; }
     input.dataset.setting = key;
     const info = schema.info ?? schema.description;
+    if (info) title.dataset.tooltip = info;
     label.append(title);
-    if (info) { const help = document.createElement('small'); help.className = 'muted'; help.textContent = info; label.append(help); }
     if (schema.type === 'boolean') { const row = document.createElement('span'); row.className = 'switch-row'; row.append(input); label.append(row); }
     else { label.append(input); }
     root.append(label);

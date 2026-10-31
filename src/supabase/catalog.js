@@ -18,12 +18,16 @@ export async function readPublishedAddonRows(client, search = '') {
   if (error && isMissingColumn(error,'addons','logo')) ({ data, error } = await request('id,title,description,author_name,icon_path,current_version_id,updated_at'));
   if (error) throw error;
   const rows = data ?? [];
-  const needsLogo = rows.filter(row => (!row.logo || (row.logo.type === 'icon' && row.logo.name === 'PuzzlePiece' && row.logo.color === '#3ecf8e')) && row.current_version_id);
-  if (needsLogo.length) {
-    const { data: versions, error: versionError } = await client.from('addon_versions').select('id,config').in('id', needsLogo.map(row => row.current_version_id));
+  const needsVersionConfig = rows.filter(row => row.current_version_id);
+  if (needsVersionConfig.length) {
+    const { data: versions, error: versionError } = await client.from('addon_versions').select('id,config').in('id', needsVersionConfig.map(row => row.current_version_id));
     if (versionError) throw versionError;
     const logos = new Map((versions ?? []).map(version => [version.id, version.config?.logo ?? null]));
-    for (const row of needsLogo) row.logo = logos.get(row.current_version_id) ?? null;
+    const shortDescriptions = new Map((versions ?? []).map(version => [version.id, version.config?.['short-description']]));
+    for (const row of needsVersionConfig) {
+      if (!row.logo || (row.logo.type === 'icon' && row.logo.name === 'PuzzlePiece' && row.logo.color === '#3ecf8e')) row.logo = logos.get(row.current_version_id) ?? null;
+      if (typeof shortDescriptions.get(row.current_version_id) === 'string' && shortDescriptions.get(row.current_version_id).trim()) row.description = shortDescriptions.get(row.current_version_id).trim();
+    }
   }
   return rows.map(mapPublishedAddon);
 }

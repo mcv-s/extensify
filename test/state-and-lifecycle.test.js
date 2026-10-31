@@ -31,6 +31,12 @@ test('state migration moves legacy addon descriptions to the current format and 
   assert.equal(Object.hasOwn(state.addons['legacy-addon'].config,'description'),false);
 });
 
+test('state migration restores draft IDs from their canonical storage keys', () => {
+  const config = { manifestVersion:1,id:'store-addon',title:'Store Addon',version:'1.0.0',author:{name:'Creator'} };
+  const state = migrateState({ schemaVersion:2, editorDrafts:{'store-addon':{config,files:{'config.json':JSON.stringify(config)}}} });
+  assert.equal(state.editorDrafts['store-addon'].id,'store-addon');
+});
+
 test('legacy README files are removed while the addon description is preserved', () => {
   const config={manifestVersion:1,id:'legacy-addon',title:'Legacy',version:'1.0.0',author:{name:'Creator'}};
   const upgraded=upgradeAddonPackage(config,{'README.md':'old readme','addon-description.md':'# Full description','content.js':'// source'});

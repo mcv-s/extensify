@@ -43,7 +43,8 @@ export async function refreshAddon(id, config, files) {
     next.addons[id] = { ...old, config, files: checked.files, version: config.version, settings: defaultSettings(config, old.settings), updatedAt: new Date().toISOString() };
     return next;
   });
-  globalThis.chrome?.runtime?.sendMessage?.({ type:'EXTENSIFY_SYNC_ADDON', addonId:id }).catch(() => {});
+  const response = await globalThis.chrome?.runtime?.sendMessage?.({ type:'EXTENSIFY_SYNC_ADDON', addonId:id });
+  if (response?.error) throw new Error(response.error);
 }
 
 export async function uninstallAddon(id) {

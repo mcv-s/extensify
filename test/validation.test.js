@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createAddonTemplate } from '../src/editor/template.js';
 import { matchesUrl, normalizePath, validatePackage, validateSettings, validateSvg } from '../src/addons/validation.js';
 import { renderSettingsForm } from '../src/components/settings-form.js';
+import { addonSummary } from '../src/addons/metadata.js';
 
 test('settings form tolerates addons with an empty env object', () => {
   assert.doesNotThrow(() => renderSettingsForm({ config: { env: {} }, settings: {} }, null));
@@ -13,6 +14,14 @@ test('default addon template passes package validation', () => {
   assert.equal(Object.hasOwn(files,'README.md'),false);
   const result=validatePackage(JSON.parse(files['config.json']),files);
   assert.equal(result.valid,true,result.errors.join('\n'));
+});
+
+test('addon summaries prefer an optional short description and retain the long-description fallback', () => {
+  const files = createAddonTemplate();
+  const config = JSON.parse(files['config.json']);
+  assert.equal(addonSummary(config, files), 'A concise summary of what this addon does.');
+  delete config['short-description'];
+  assert.match(addonSummary(config, files), /^My First Addon Describe what this addon does/);
 });
 
 test('Phosphor icon names are free-form and do not require a bundled icon registry', () => {
