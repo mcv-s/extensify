@@ -129,6 +129,13 @@
     line-height: 12px
 }
 
+.quickstart-download span.download-version {
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 550;
+    opacity: .72
+}
+
 .download-note {
     display: block;
     margin-top: 9px;

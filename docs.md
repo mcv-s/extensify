@@ -16,7 +16,11 @@ Extensify works without a user account or a build step. Browsing and installing 
 
 The [quickstart page](quickstart.html) has the download button, a live showcase of published addons, and a visual walk-through of these steps. It follows the browser's light or dark appearance preference. The showcase is read-only and may be empty when the public catalog is unavailable. The public [documentation](docs.html) and [privacy policy](privacy.html) pages work outside the extension; the interactive workspace requires the extension's browser storage and APIs and redirects web visitors to quickstart.
 
-After extension source or manifest changes, return to the extensions page and click **Reload** on Extensify. The popup opens a new full-page Extensify tab. The sidebar links to Home, Explorer, Installed, Editor, Settings, and Documentation. The sidebar button or Ctrl+B toggles it; Settings chooses whether it collapses to icons or hides completely.
+After extension source or manifest changes, return to the extensions page and click **Reload** on Extensify. The popup opens a new full-page Extensify tab. The sidebar links to Home, Explorer, Installed, Editor, Settings, and Documentation. The sidebar checks the GitHub `HEAD` manifest for a newer version when a workspace page opens and shows a quiet update banner when one is available; network failures do not interrupt the page. The sidebar button or Ctrl+B toggles it; Settings chooses whether it collapses to icons or hides completely.
+
+### Minimal standalone extension
+
+The repository also includes `grayscale-extension/`, a complete two-file Chromium Manifest V3 extension that applies `filter: grayscale(1)` to every supported webpage. To try it, open `chrome://extensions` or `edge://extensions`, enable **Developer mode**, choose **Load unpacked**, and select that folder. Browser-internal pages such as `chrome://extensions` cannot be modified by extensions.
 
 The toolbar popup shows installed addons and lets you enable or disable each one. Addons with visible settings have a caret to expand those controls in place. Boolean settings use compact same-row switches; other controls remain stacked, and setting explanations appear when you hover their display names. It also links to the full interface and Settings.
 

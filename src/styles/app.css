@@ -78,6 +78,29 @@
     margin-top: auto
 }
 
+.update-banner {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0 0 10px;
+    padding: 10px 10px;
+    color: var(--green);
+    background: var(--green-bg);
+    border: 1px solid #3ecf8e45;
+    border-radius: 9px;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity .5s ease, transform .5s ease
+}
+
+.update-banner[hidden] { display: none }
+.update-banner.is-visible { opacity: 1; transform: translateY(0) }
+.update-banner-icon { display: inline-grid; place-items: center; flex: 0 0 auto }
+.update-banner-copy { display: grid; gap: 2px; min-width: 0; flex: 1 }
+.update-banner-copy b { color: var(--text); font-size: 10px; font-weight: 600; white-space: nowrap }
+.update-banner-copy small { color: var(--muted); font-size: 9px; line-height: 1.25 }
+.update-banner-arrow { display: inline-grid; place-items: center; color: var(--green); flex: 0 0 auto }
+
 .sidebar-status {
     display: flex;
     align-items: center;
@@ -724,6 +747,7 @@ body {
 .app-shell.sidebar-collapsed .nav-caption,
 .app-shell.sidebar-collapsed .nav-link span,
 .app-shell.sidebar-collapsed .sidebar-status>span:not(.status-dot),
+.app-shell.sidebar-collapsed .update-banner-copy,
 .app-shell.sidebar-collapsed .profile-chip>span {
     display: none
 }
@@ -741,6 +765,11 @@ body {
 .app-shell.sidebar-collapsed .profile-chip {
     justify-content: center;
     padding: 14px 0 3px
+}
+
+.app-shell.sidebar-collapsed .update-banner {
+    justify-content: center;
+    padding: 9px 0
 }
 
 .app-shell.sidebar-collapsed .sidebar-status {
