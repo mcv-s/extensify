@@ -14,7 +14,7 @@ Extensify works without a user account or a build step. Browsing and installing 
 4. Choose **Load unpacked** and select the folder containing `manifest.json`.
 5. Pin Extensify from the browser’s extensions menu to open its popup quickly.
 
-The [quickstart page](quickstart.html) has the download button and a visual walk-through of these steps. The public [documentation](docs.html) and [privacy policy](privacy.html) pages work outside the extension; the interactive workspace requires the extension's browser storage and APIs and redirects web visitors to quickstart.
+The [quickstart page](quickstart.html) has the download button, a live showcase of published addons, and a visual walk-through of these steps. It follows the browser's light or dark appearance preference. The showcase is read-only and may be empty when the public catalog is unavailable. The public [documentation](docs.html) and [privacy policy](privacy.html) pages work outside the extension; the interactive workspace requires the extension's browser storage and APIs and redirects web visitors to quickstart.
 
 After extension source or manifest changes, return to the extensions page and click **Reload** on Extensify. The popup opens a new full-page Extensify tab. The sidebar links to Home, Explorer, Installed, Editor, Settings, and Documentation. The sidebar button or Ctrl+B toggles it; Settings chooses whether it collapses to icons or hides completely.
 

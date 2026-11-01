@@ -1,0 +1,45 @@
+{
+  "manifestVersion": 1,
+  "id": "tracking-cleanser",
+  "title": "Clean URLs",
+  "short-description": "Remove common tracking parameters from URLs.",
+  "version": "1.0.0",
+  "author": {
+    "name": "mcv-s"
+  },
+  "logo": {
+    "type": "svg",
+    "path": "assets/icon.svg"
+  },
+  "permissions": [
+    "contentScript",
+    "settings"
+  ],
+  "contentScripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "runAt": "document_start",
+      "allFrames": false
+    }
+  ],
+  "env": {
+    "showIndicator": {
+      "type": "boolean",
+      "displayName": "Show clean-up indicator",
+      "info": "Show a small indicator when parameters are removed.",
+      "default": true
+    },
+    "customParams": {
+      "type": "textarea",
+      "displayName": "Additional parameters",
+      "info": "Optional parameter names, one per line or separated by commas.",
+      "placeholder": "ref\naffiliate_id",
+      "default": ""
+    }
+  }
+}

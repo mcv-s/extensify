@@ -457,7 +457,8 @@ input[type=checkbox][data-setting] {
     background: var(--surface-3);
     border: 1px solid var(--line);
     position: relative;
-    transition: .18s
+    transition: .18s;
+    cursor: pointer
 }
 
 input[type=checkbox][data-setting]:after {
@@ -469,17 +470,20 @@ input[type=checkbox][data-setting]:after {
     height: 14px;
     background: var(--muted);
     border-radius: 50%;
-    transition: .18s
+    transition: .18s;
+    cursor: pointer
 }
 
 input[type=checkbox][data-setting]:checked {
     background: var(--green);
-    border-color: var(--green)
+    border-color: var(--green);
+    cursor: pointer
 }
 
 input[type=checkbox][data-setting]:checked:after {
     left: 17px;
-    background: #fff
+    background: #fff;
+    cursor: pointer
 }
 
 .loading {
@@ -541,6 +545,10 @@ input[type=checkbox][data-setting]:checked:after {
     background: var(--surface-2);
     border: 1px solid var(--line);
     border-radius: 7px
+}
+
+.toggle {
+    cursor: pointer;
 }
 
 .setting-field textarea {
