@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { migrateState, getState, setTheme } from '../src/storage/state.js';
+import { migrateState, getState, setTheme, updateState } from '../src/storage/state.js';
 import { exportData, importData, validateImport } from '../src/data/data.js';
 import { installAddon, refreshAddon, uninstallAddon, updateAddonSettings } from '../src/addons/install.js';
 import { createAddonTemplate } from '../src/editor/template.js';
 import { upgradeAddonPackage } from '../src/addons/metadata.js';
+import { AUTH_SESSION_KEY, saveAuthSession } from '../src/auth/session.js';
 
 const store=new Map();
 globalThis.localStorage={getItem:key=>store.get(key)??null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)};
@@ -68,13 +69,38 @@ test('data export/import validates and restores one versioned user state', async
   const files=createAddonTemplate();const config=JSON.parse(files['config.json']);
   await installAddon(config,files);
   const payload=await exportData();
+  await updateState(state=>{state.addons[config.id].storage={lastSeen:'https://example.com/'};return state;});
+  const updatedPayload=await exportData();
+  assert.deepEqual(updatedPayload.state.addons[config.id].storage,{lastSeen:'https://example.com/'});
   assert.equal(payload.format,'extensify-user-data');
   store.clear();
-  await importData(payload);
+  await importData(updatedPayload);
   const state=await getState();
   assert.equal(state.preferences.theme,'light');
   assert.equal(state.addons[config.id].config.title,config.title);
-  assert.equal(validateImport(payload).schemaVersion,3);
-  assert.throws(()=>validateImport({...payload,version:999}),/unsupported data version/);
-  await assert.rejects(importData({...payload,state:{...payload.state,addons:{broken:{id:'mismatch',config,files}}}}),/does not match its ID/);
+  assert.deepEqual(state.addons[config.id].storage,{lastSeen:'https://example.com/'});
+  assert.equal(validateImport(updatedPayload).schemaVersion,3);
+  assert.throws(()=>validateImport({...updatedPayload,version:999}),/unsupported data version/);
+  await assert.rejects(importData({...updatedPayload,state:{...updatedPayload.state,addons:{broken:{id:'mismatch',config,files}}}}),/does not match its ID/);
+});
+
+test('data backup exports and restores the separately stored sign-in session', async () => {
+  const previousChrome=globalThis.chrome;
+  const values=new Map();
+  const local={
+    async get(key){return values.has(key)?{[key]:values.get(key)}:{};},
+    async set(items){for(const [key,value] of Object.entries(items))values.set(key,value);},
+    async remove(key){values.delete(key);},
+    async setAccessLevel(){}
+  };
+  globalThis.chrome={storage:{local}};
+  try {
+    await saveAuthSession({access_token:'access-token',refresh_token:'refresh-token',expires_at:123456});
+    const backup=await exportData();
+    assert.deepEqual(backup.authSession,{accessToken:'access-token',refreshToken:'refresh-token',expiresAt:123456});
+    values.clear();
+    await importData(backup);
+    assert.deepEqual(values.get(AUTH_SESSION_KEY),backup.authSession);
+    assert.throws(()=>validateImport({...backup,authSession:{accessToken:'',refreshToken:'refresh-token',expiresAt:123456}}),/invalid sign-in session/);
+  } finally { globalThis.chrome=previousChrome; }
 });

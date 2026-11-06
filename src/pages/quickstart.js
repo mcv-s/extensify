@@ -2,13 +2,15 @@ import { listPublishedAddons } from '../supabase/catalog.js';
 import { renderAddonLogo } from '../components/addon-logo.js';
 import { addonSummary } from '../addons/metadata.js';
 import { fetchLatestVersion } from '../update/check.js';
+import { enableLiquidButtons } from '../editor/liquid-button.js';
 
 const marquee = document.querySelector('#addon-marquee');
 const status = document.querySelector('#catalog-status');
 const download = document.querySelector('.quickstart-download');
+enableLiquidButtons(document.body);
 
 fetchLatestVersion().then(version => {
-  if (download) download.innerHTML = `Download Extensify <span class="download-version">(v${escapeHtml(version)})</span><span aria-hidden="true">↓</span>`;
+  if (download) download.querySelector('.download-version').textContent = `(v${escapeHtml(version)})`;
 }).catch(() => {});
 
 try {

@@ -3,13 +3,13 @@ import { createCodeEditor } from '../editor/code-editor.js';
 import { getState, saveDraft, updateState } from '../storage/state.js';
 import { createAddonTemplate } from '../editor/template.js';
 import { exportAddonZip, importAddonZip } from '../editor/zip.js';
+import { importAddonFolder } from '../editor/folder.js';
 import { normalizePath, validatePackage } from '../addons/validation.js';
 import { addonSummary, upgradeAddonPackage } from '../addons/metadata.js';
 import { installAddon, refreshAddon, uninstallAddon } from '../addons/install.js';
 import { publishAddon } from '../editor/publish.js';
 import { getCurrentUser } from '../auth/auth.js';
 import { getSupabase } from '../supabase/client.js';
-import { renderMarkdown } from '../utils/markdown.js';
 import { renderAddonLogo } from '../components/addon-logo.js';
 
 async function main() {
@@ -21,7 +21,7 @@ async function main() {
   if (!draft) { location.replace('editor.html'); return; }
   let selected = { config: draft.config, files: draft.files };
   if (!selected.config) selected.config = JSON.parse(selected.files['config.json']);
-  let project = upgradeAddonPackage(selected.config, selected.files);
+  let project = { ...upgradeAddonPackage(selected.config, selected.files), publishedAt:draft.publishedAt, publishedVersion:draft.publishedVersion };
   let openFiles = ['config.json'];
   let activeFile = 'config.json';
   let editorView;
@@ -29,30 +29,37 @@ async function main() {
   let contextPath = '';
 
   await renderShell({
-    active: 'editor', title: 'Addon editor', subtitle: 'Edit addon files, preview the description, and publish when ready.', flush: true,
+    active: 'editor', title: 'Addon editor', subtitle: 'Edit addon files and publish when ready.', flush: true,
     content: `<div class="editor-toolbar">
       <div class="editor-project-name"><span class="editor-dot"></span><b id="project-title"></b><span id="dirty-mark" class="dirty-mark" hidden>Unsaved changes</span></div>
-      <div class="editor-actions"><button class="button" id="preview-description">${icon('eye',15)} Preview</button><button class="button" id="validate-btn">${icon('check-circle',15)} Validate</button><button class="button" id="import-btn">${icon('upload-simple',15)} Load ZIP</button><button class="button" id="export-btn">${icon('download-simple',15)} Save ZIP</button><button class="button" id="install-btn">Install locally</button><button class="button" id="save-btn">Save draft</button><button class="button primary" id="publish-btn" hidden>${icon('cloud-arrow-up',15)} Publish</button><input type="file" id="zip-input" accept=".zip,application/zip" hidden></div>
+      <div class="editor-actions"><button type="button" class="icon-button editor-action" id="validate-btn" aria-label="Validate" data-tooltip="Validate">${icon('check-circle',18)}</button><button type="button" class="icon-button editor-action" id="import-btn" aria-label="Load ZIP" data-tooltip="Load ZIP">${icon('upload-simple',18)}</button><button type="button" class="icon-button editor-action" id="folder-btn" aria-label="Load folder" data-tooltip="Load folder">${icon('folder-open',18)}</button><button type="button" class="icon-button editor-action" id="export-btn" aria-label="Save ZIP" data-tooltip="Save ZIP">${icon('download-simple',18)}</button><button type="button" class="icon-button editor-action" id="install-btn" aria-label="Install locally" data-tooltip="Install locally">${icon('arrow-square-out',18)}</button><button type="button" class="icon-button editor-action" id="save-btn" aria-label="Save draft" data-tooltip="Save draft">${icon('floppy-disk',18)}</button><button type="button" class="button primary liquid-button" id="publish-btn" aria-label="Publish" hidden>${icon('cloud-arrow-up',15)} <span>Publish</span></button><input type="file" id="zip-input" accept=".zip,application/zip" hidden><input type="file" id="folder-input" webkitdirectory directory multiple hidden></div>
     </div>
     <div class="editor-workspace">
-      <aside class="file-panel"><div class="panel-heading">FILES <button class="icon-button" id="new-file" title="Add a file">${icon('plus',15)}</button></div><input id="file-search" class="field file-search" placeholder="Filter files"><div id="file-tree" class="file-tree"></div><div class="file-panel-foot"><span id="file-count"></span><span>Right-click a file for actions</span></div></aside>
+      <aside class="file-panel"><div class="panel-heading">FILES <button class="icon-button" id="new-file" aria-label="Add a file" data-tooltip="Add a file">${icon('plus',15)}</button></div><input id="file-search" class="field file-search" placeholder="Filter files"><div id="file-tree" class="file-tree"></div><div class="file-panel-foot"><span id="file-count"></span><span>Right-click a file for actions</span></div></aside>
       <section class="code-panel"><div id="editor-tabs" class="editor-tabs" role="tablist"></div><div id="code-editor" class="code-editor"></div><div class="editor-status"><span id="language-label">JSON</span><span id="cursor-label">Ln 1, Col 1</span><span class="status-right">Plain text · UTF-8</span></div></section>
     </div>
     <div id="file-context-menu" class="file-context-menu" role="menu" hidden><button type="button" role="menuitem" data-menu-action="copy">${icon('copy',14)} Copy path</button><button type="button" role="menuitem" data-menu-action="rename">${icon('file-code',14)} Rename file</button><button type="button" role="menuitem" class="danger-item" data-menu-action="delete">${icon('trash',14)} Delete file</button></div>
     <dialog id="rename-dialog" class="editor-dialog"><form method="dialog" id="rename-form"><h2>Rename file</h2><label class="setting-field"><span class="setting-label">File path</span><input id="rename-input" class="field" autocomplete="off" required></label><div class="dialog-actions"><button class="button" value="cancel">Cancel</button><button class="button primary" id="rename-save" value="save">Rename</button></div></form></dialog>
     <dialog id="validation-dialog" class="editor-dialog"><div class="validation-box" id="validation-box"></div><div class="dialog-actions"><button class="button" id="close-validation">Close</button></div></dialog>
-    <dialog id="preview-dialog" class="editor-dialog preview-dialog"><div class="markdown-body" id="description-preview-body"></div><div class="dialog-actions"><button class="button" id="close-preview">Close preview</button></div></dialog>`
+    `
   });
 
   const $ = selector => document.querySelector(selector);
   const menu = $('#file-context-menu');
   const renameDialog = $('#rename-dialog');
   const validationDialog = $('#validation-dialog');
-  const previewDialog = $('#preview-dialog');
 
   function syncActiveFile() { if (editorView) project.files[activeFile] = editorView.getValue(); }
   function markDirty() { dirty = true; $('#dirty-mark').hidden = false; }
   function refreshTitle() { $('#project-title').textContent = project.config.title || project.config.id; }
+  function updateInstallAction() {
+    const published=Boolean(project.publishedAt);
+    const button=$('#install-btn');
+    const label=published?'Extension page':'Install locally';
+    button.innerHTML=icon('arrow-square-out',18);
+    button.setAttribute('aria-label',label);
+    button.dataset.tooltip=label;
+  }
   function writeConfigFile() {
     project.files['config.json'] = JSON.stringify(project.config, null, 2);
     if (activeFile === 'config.json') showFile(activeFile);
@@ -137,7 +144,7 @@ async function main() {
   async function saveLocalDraft() {
     syncActiveFile();
     const normalized = upgradeAddonPackage(project.config, project.files);
-    project = normalized;
+    project = { ...normalized, publishedAt:project.publishedAt, publishedVersion:project.publishedVersion };
     if (!ensureConfig()) return false;
     const validation = validatePackage(project.config, project.files);
     if (!validation.valid) { showValidation(validation.errors); return false; }
@@ -149,7 +156,7 @@ async function main() {
     return true;
   }
 
-  refreshTitle(); showFile(activeFile); renderTree();
+  refreshTitle(); showFile(activeFile); renderTree(); updateInstallAction();
   try { if (await getCurrentUser()) $('#publish-btn').hidden = false; } catch { /* Publishing remains hidden if auth is unavailable. */ }
   $('#file-search').addEventListener('input', renderTree);
   $('#new-file').addEventListener('click', () => {
@@ -194,12 +201,17 @@ async function main() {
   $('#save-btn').addEventListener('click', saveLocalDraft);
   $('#validate-btn').addEventListener('click', () => { syncActiveFile(); if (ensureConfig()) showValidation(validatePackage(project.config, project.files).errors); });
   $('#close-validation').addEventListener('click', () => validationDialog.close());
-  $('#preview-description').addEventListener('click', () => { syncActiveFile(); $('#description-preview-body').innerHTML = renderMarkdown(project.files['addon-description.md'] ?? ''); previewDialog.showModal(); });
-  $('#close-preview').addEventListener('click', () => previewDialog.close());
   $('#import-btn').addEventListener('click', () => $('#zip-input').click());
   $('#zip-input').addEventListener('change', async event => {
     const file = event.target.files?.[0]; if (!file) return;
-    try { const pack = await importAddonZip(file); project = upgradeAddonPackage(pack.config, pack.files); openFiles = ['config.json']; activeFile = 'config.json'; showFile(activeFile); renderTree(); markDirty(); toast('ZIP imported. Review and save the draft.'); }
+    try { const pack = await importAddonZip(file); project = upgradeAddonPackage(pack.config, pack.files); openFiles = ['config.json']; activeFile = 'config.json'; showFile(activeFile); renderTree(); updateInstallAction(); markDirty(); toast('ZIP imported. Review and save the draft.'); }
+    catch (error) { toast(error.message, 'error'); }
+    finally { event.target.value = ''; }
+  });
+  $('#folder-btn').addEventListener('click', () => $('#folder-input').click());
+  $('#folder-input').addEventListener('change', async event => {
+    if (!event.target.files?.length) return;
+    try { project = await importAddonFolder(event.target.files); openFiles = ['config.json']; activeFile = 'config.json'; showFile(activeFile); renderTree(); updateInstallAction(); markDirty(); toast('Folder imported. Review and save the draft.'); }
     catch (error) { toast(error.message, 'error'); }
     finally { event.target.value = ''; }
   });
@@ -210,6 +222,7 @@ async function main() {
     catch (error) { toast(error.message, 'error'); }
   });
   $('#install-btn').addEventListener('click', async () => {
+    if (project.publishedAt) { location.href = `addon.html?id=${encodeURIComponent(project.config.id)}`; return; }
     syncActiveFile();
     if (!ensureConfig()) return;
     const validation = validatePackage(project.config, project.files);
@@ -232,7 +245,7 @@ async function main() {
     const validation = validatePackage(project.config, project.files);
     if (!validation.valid) { showValidation(validation.errors); return; }
     if (!confirm(`Publish ${project.config.title} v${project.config.version} to Explorer?`)) return;
-    try { await publishAddon(project.config, project.files); project.publishedAt = new Date().toISOString(); project.publishedVersion = project.config.version; await saveDraft(project.config.id, structuredClone(project)); dirty = false; $('#dirty-mark').hidden = true; toast('Addon published to Explorer.'); }
+    try { await publishAddon(project.config, project.files); project.publishedAt = new Date().toISOString(); project.publishedVersion = project.config.version; await saveDraft(project.config.id, structuredClone(project)); dirty = false; $('#dirty-mark').hidden = true; updateInstallAction(); launchPublishArrow($('#publish-btn')); toast('Addon published to Explorer.'); }
     catch (error) { toast(error.message, 'error'); }
   });
   window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
@@ -242,7 +255,7 @@ await main();
 
 async function renderProjectPicker(state) {
   await renderShell({ active: 'editor', title: 'Addon editor', subtitle: 'Choose an addon to edit, or start another project.', content: `
-    <div class="project-picker-toolbar"><button id="create-addon" class="button primary">${icon('plus',15)} New addon</button><label class="button">${icon('upload-simple',15)} Load addon ZIP<input id="picker-zip" type="file" accept=".zip,application/zip" hidden></label></div>
+    <div class="project-picker-toolbar"><button type="button" id="create-addon" class="button primary liquid-button" aria-label="New addon">${icon('plus',16)} <span>New addon</span></button><button type="button" id="picker-zip-btn" class="icon-button editor-action" aria-label="Load addon ZIP" data-tooltip="Load addon ZIP">${icon('upload-simple',18)}</button><button type="button" id="picker-folder-btn" class="icon-button editor-action" aria-label="Load folder" data-tooltip="Load folder">${icon('folder-open',18)}</button><input id="picker-zip" type="file" accept=".zip,application/zip" hidden><input id="picker-folder" type="file" webkitdirectory directory multiple hidden></div>
     <div class="project-picker-grid" id="project-list"></div>
     <div class="empty-state picker-empty" id="project-empty" hidden><div class="empty-icon">${icon('file-code',20)}</div><h3>No addon projects yet</h3><p>Create your first addon or load an existing package ZIP.</p></div>
     <div id="addon-project-menu" class="file-context-menu" role="menu" hidden><button type="button" role="menuitem" data-project-action="rename">${icon('pencil-simple',14)} Rename title</button><button type="button" role="menuitem" class="danger-item" data-project-action="delete">${icon('trash',14)} Delete addon</button></div>
@@ -316,13 +329,33 @@ async function renderProjectPicker(state) {
     const files = createAddonTemplate(); const config = JSON.parse(files['config.json']); config.id = id; config.title = 'New Addon'; files['config.json'] = JSON.stringify(config, null, 2);
     await saveDraft(id, { id, config, files }); location.href = `editor.html?id=${encodeURIComponent(id)}&source=draft`;
   });
+  document.querySelector('#picker-zip-btn').addEventListener('click',()=>document.querySelector('#picker-zip').click());
   document.querySelector('#picker-zip').addEventListener('change', async event => {
     const file = event.target.files?.[0]; if (!file) return;
     try { const pack = await importAddonZip(file); await saveDraft(pack.config.id, { id:pack.config.id, config:pack.config, files:pack.files }); location.href = `editor.html?id=${encodeURIComponent(pack.config.id)}&source=draft`; }
     catch (error) { toast(error.message, 'error'); }
     finally { event.target.value = ''; }
   });
+  document.querySelector('#picker-folder-btn').addEventListener('click',()=>document.querySelector('#picker-folder').click());
+  document.querySelector('#picker-folder').addEventListener('change',async event=>{
+    if(!event.target.files?.length)return;
+    try { const pack=await importAddonFolder(event.target.files); await saveDraft(pack.config.id,{id:pack.config.id,config:pack.config,files:pack.files}); location.href=`editor.html?id=${encodeURIComponent(pack.config.id)}&source=draft`; }
+    catch(error) { toast(error.message,'error'); }
+    finally { event.target.value=''; }
+  });
 }
 
 function download(name, blob) { const anchor = document.createElement('a'); const url = URL.createObjectURL(blob); anchor.href = url; anchor.download = name; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+function launchPublishArrow(button) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const bounds = button.getBoundingClientRect();
+  const arrow = document.createElement('span');
+  arrow.className = 'publish-launch-arrow';
+  arrow.setAttribute('aria-hidden', 'true');
+  arrow.innerHTML = '<i class="ph ph-file-archive"></i>';
+  arrow.style.left = `${bounds.left + bounds.width / 2}px`;
+  arrow.style.top = `${bounds.top - 2}px`;
+  arrow.addEventListener('animationend', () => arrow.remove(), { once:true });
+  document.body.append(arrow);
+}
 function escapeHtml(value = '') { return String(value).replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[character]); }

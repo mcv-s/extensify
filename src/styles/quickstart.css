@@ -108,12 +108,12 @@
     display: inline-flex;
     align-items: center;
     gap: 17px;
-    margin-top: 22px;
-    padding: 12px 16px;
+    margin: 22px 0 0;
+    padding: 16px 21px;
     border-radius: 9px;
     background: var(--green);
     color: #0d2118;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 650;
     box-shadow: 0 8px 26px #3ecf8e26;
     transition: transform .18s, background .18s
@@ -125,7 +125,6 @@
 }
 
 .quickstart-download span {
-    font-size: 17px;
     line-height: 12px
 }
 
@@ -134,6 +133,11 @@
     line-height: 1;
     font-weight: 550;
     opacity: .72
+}
+
+.quickstart-download .ph-download-simple {
+    font-size: 17px;
+    line-height: 1
 }
 
 .download-note {
