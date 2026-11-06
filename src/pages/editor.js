@@ -12,6 +12,8 @@ import { getCurrentUser } from '../auth/auth.js';
 import { getSupabase } from '../supabase/client.js';
 import { renderAddonLogo } from '../components/addon-logo.js';
 
+window.addEventListener('popstate', () => location.reload());
+
 async function main() {
   const state = await getState();
   const requestedId = new URLSearchParams(location.search).get('id');
@@ -222,7 +224,7 @@ async function main() {
     catch (error) { toast(error.message, 'error'); }
   });
   $('#install-btn').addEventListener('click', async () => {
-    if (project.publishedAt) { location.href = `addon.html?id=${encodeURIComponent(project.config.id)}`; return; }
+    if (project.publishedAt) { await transitionToPublishedAddon(project.config.id); return; }
     syncActiveFile();
     if (!ensureConfig()) return;
     const validation = validatePackage(project.config, project.files);
@@ -245,7 +247,7 @@ async function main() {
     const validation = validatePackage(project.config, project.files);
     if (!validation.valid) { showValidation(validation.errors); return; }
     if (!confirm(`Publish ${project.config.title} v${project.config.version} to Explorer?`)) return;
-    try { await publishAddon(project.config, project.files); project.publishedAt = new Date().toISOString(); project.publishedVersion = project.config.version; await saveDraft(project.config.id, structuredClone(project)); dirty = false; $('#dirty-mark').hidden = true; updateInstallAction(); launchPublishArrow($('#publish-btn')); toast('Addon published to Explorer.'); }
+    try { await publishAddon(project.config, project.files); project.publishedAt = new Date().toISOString(); project.publishedVersion = project.config.version; await saveDraft(project.config.id, structuredClone(project)); dirty = false; $('#dirty-mark').hidden = true; updateInstallAction(); await launchPublishArrow($('#publish-btn')); toast('Addon published to Explorer.'); await transitionToPublishedAddon(project.config.id); }
     catch (error) { toast(error.message, 'error'); }
   });
   window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
@@ -346,8 +348,61 @@ async function renderProjectPicker(state) {
 }
 
 function download(name, blob) { const anchor = document.createElement('a'); const url = URL.createObjectURL(blob); anchor.href = url; anchor.download = name; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+async function transitionToPublishedAddon(id) {
+  const host = document.querySelector('.page-scroll');
+  const editorContent = host?.querySelector(':scope > .page-content');
+  const target = `addon.html?id=${encodeURIComponent(id)}`;
+  if (!host || !editorContent) { location.href = target; return; }
+
+  const frame = document.createElement('iframe');
+  frame.className = 'publish-addon-frame';
+  frame.title = 'Addon details';
+  host.scrollTop = 0;
+  host.classList.add('publish-transition-host');
+
+  const ready = new Promise((resolve, reject) => {
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener('message', onMessage);
+    };
+    const timeout = window.setTimeout(() => { cleanup(); reject(new Error('Addon details did not finish loading.')); }, 20000);
+    const onMessage = event => {
+      if (event.origin !== location.origin || event.source !== frame.contentWindow) return;
+      if (event.data?.type === 'extensify:addon-toast') {
+        toast(event.data.message, event.data.kind);
+        return;
+      }
+      if (event.data?.type === 'extensify:addon-ready' && event.data.id === id) {
+        window.clearTimeout(timeout);
+        resolve();
+      }
+    };
+    window.addEventListener('message', onMessage);
+    frame.addEventListener('error', () => { cleanup(); reject(new Error('Addon details could not be loaded.')); }, { once: true });
+  });
+
+  frame.src = `addon.html?id=${encodeURIComponent(id)}&embed=1&theme=${encodeURIComponent(document.documentElement.dataset.theme || 'dark')}`;
+  host.append(frame);
+  try { await ready; }
+  catch { location.href = target; return; }
+
+  history.pushState({ addonId: id }, '', target);
+  document.title = 'addon details - extensify';
+  const breadcrumbs = document.querySelector('.breadcrumbs');
+  if (breadcrumbs) breadcrumbs.innerHTML = 'Workspace <span>/</span> Addon details';
+  document.querySelectorAll('.nav-link').forEach(link => link.classList.toggle('active', link.getAttribute('href') === 'explorer.html'));
+
+  requestAnimationFrame(() => host.classList.add('is-transitioning'));
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    editorContent.inert = true;
+    return;
+  }
+  await new Promise(resolve => frame.addEventListener('transitionend', resolve, { once: true }));
+  editorContent.inert = true;
+}
+
 function launchPublishArrow(button) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
   const bounds = button.getBoundingClientRect();
   const arrow = document.createElement('span');
   arrow.className = 'publish-launch-arrow';
@@ -355,7 +410,9 @@ function launchPublishArrow(button) {
   arrow.innerHTML = '<i class="ph ph-file-archive"></i>';
   arrow.style.left = `${bounds.left + bounds.width / 2}px`;
   arrow.style.top = `${bounds.top - 2}px`;
+  const animation = new Promise(resolve => arrow.addEventListener('animationend', resolve, { once:true }));
   arrow.addEventListener('animationend', () => arrow.remove(), { once:true });
   document.body.append(arrow);
+  return animation;
 }
 function escapeHtml(value = '') { return String(value).replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[character]); }

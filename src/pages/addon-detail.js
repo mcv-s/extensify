@@ -1,4 +1,4 @@
-import { renderShell, icon, toast } from '../components/shell.js';
+import { applyTheme, renderShell, icon, toast } from '../components/shell.js';
 import { renderAddonLogo } from '../components/addon-logo.js';
 import { getState } from '../storage/state.js';
 import { installAddon, refreshAddon, setAddonEnabled, uninstallAddon } from '../addons/install.js';
@@ -13,11 +13,24 @@ const permissionText = {
   activeTab: 'Can interact with the current tab when granted.', clipboardRead: 'Can read clipboard data when used.',
   clipboardWrite: 'Can write clipboard data when used.'
 };
+const embedded = new URLSearchParams(location.search).get('embed') === '1';
 const id = new URLSearchParams(location.search).get('id');
 
-await renderShell({ active: 'explorer', title: 'Addon details', subtitle: 'Review capabilities and manage this addon.', content: '<div class="loading">Loading addon…</div>' });
+if (embedded) {
+  await applyTheme();
+  const parentTheme = new URLSearchParams(location.search).get('theme');
+  if (parentTheme === 'light' || parentTheme === 'dark') document.documentElement.dataset.theme = parentTheme;
+  document.body.classList.add('addon-embedded');
+  document.querySelector('#app').innerHTML = '<div class="page-scroll"><section class="page-content"><div class="loading">Loading addon…</div></section></div>';
+} else {
+  await renderShell({ active: 'explorer', title: 'Addon details', subtitle: 'Review capabilities and manage this addon.', content: '<div class="loading">Loading addon…</div>' });
+}
 if (!id) showError('Choose an addon to view its details.');
 else await load();
+if (embedded) {
+  prepareEmbeddedLinks();
+  await signalEmbeddedReady();
+}
 
 async function load() {
   try {
@@ -71,31 +84,45 @@ function render(addon, remote, localDraft) {
   if (addon.installedAt) renderSettingsForm(addon, document.querySelector('#settings-form'));
   document.querySelector('#enable-addon')?.addEventListener('change', async event => {
     const input = event.target;
-    try { await setAddonEnabled(id, input.checked, config); toast(`Addon ${input.checked ? 'enabled' : 'disabled'}.`); await load(); }
-    catch (error) { input.checked = false; toast(error.message, 'error'); }
+    try { await setAddonEnabled(id, input.checked, config); notify(`Addon ${input.checked ? 'enabled' : 'disabled'}.`); await load(); }
+    catch (error) { input.checked = false; notify(error.message, 'error'); }
   });
-  document.querySelector('#remove-addon')?.addEventListener('click', async () => { await uninstallAddon(id); toast('Addon uninstalled.'); location.href = 'installed.html'; });
+  document.querySelector('#remove-addon')?.addEventListener('click', async () => { await uninstallAddon(id); notify('Addon uninstalled.'); if (embedded) window.top.location.href = 'installed.html'; else location.href = 'installed.html'; });
   document.querySelector('#install-addon')?.addEventListener('click', async () => {
-    try { const pack = remote ?? await fetchAddonPackage(id); await installAddon(pack.config, pack.files, { source: 'supabase' }); toast('Addon installed. You can enable it when ready.'); await load(); }
-    catch (error) { toast(error.message, 'error'); }
+    try { const pack = remote ?? await fetchAddonPackage(id); await installAddon(pack.config, pack.files, { source: 'supabase' }); notify('Addon installed. You can enable it when ready.'); await load(); }
+    catch (error) { notify(error.message, 'error'); }
   });
   document.querySelector('#refresh-addon')?.addEventListener('click', async () => {
     try {
       if (addon.source === 'local') {
         const source = localDraft ?? { config, files: addon.files };
         await refreshAddon(id, source.config, source.files);
-        toast(localDraft ? 'Installed files refreshed from your saved editor draft.' : 'Local addon refreshed.');
+        notify(localDraft ? 'Installed files refreshed from your saved editor draft.' : 'Local addon refreshed.');
       } else {
         const pack = await fetchAddonPackage(id);
         await refreshAddon(id, pack.config, pack.files);
-        toast(`Updated to version ${pack.version.version}.`);
+        notify(`Updated to version ${pack.version.version}.`);
       }
       await load();
-    } catch (error) { toast(error.message, 'error'); }
+    } catch (error) { notify(error.message, 'error'); }
   });
+  if (embedded) prepareEmbeddedLinks();
 }
 
 function showError(message) {
   document.querySelector('.page-content').innerHTML = `<div class="empty-state"><div class="empty-icon">${icon('warning', 20)}</div><h3>Could not load addon</h3><p>${escapeHtml(message)}</p><a class="button" href="explorer.html">Back to Explorer</a></div>`;
+}
+function notify(message, kind = 'success') {
+  if (embedded) window.parent.postMessage({ type: 'extensify:addon-toast', id, message, kind }, location.origin);
+  else toast(message, kind);
+}
+function prepareEmbeddedLinks() {
+  document.querySelectorAll('.page-content a[href]').forEach(link => { link.target = '_top'; });
+}
+async function signalEmbeddedReady() {
+  await document.fonts?.ready;
+  await Promise.all([...document.images].map(image => image.decode().catch(() => {})));
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  window.parent.postMessage({ type: 'extensify:addon-ready', id }, location.origin);
 }
 function escapeHtml(value = '') { return String(value).replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[character]); }
