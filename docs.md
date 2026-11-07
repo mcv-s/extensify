@@ -22,7 +22,7 @@ After extension source or manifest changes, return to the extensions page and cl
 
 The repository also includes `grayscale-extension/`, a complete two-file Chromium Manifest V3 extension that applies `filter: grayscale(1)` to every supported webpage. To try it, open `chrome://extensions` or `edge://extensions`, enable **Developer mode**, choose **Load unpacked**, and select that folder. Browser-internal pages such as `chrome://extensions` cannot be modified by extensions.
 
-The toolbar popup shows installed addons and lets you enable or disable each one. Addons with visible settings have a caret to expand those controls in place. Boolean settings use compact same-row switches; other controls remain stacked, and setting explanations appear when you hover their display names. It also links to the full interface and Settings.
+The toolbar popup shows installed addons and lets you enable or disable each one. Its refresh button fetches the latest catalog versions and refreshes local addons from their saved Editor drafts. Addons with visible settings have a caret to expand those controls in place. Boolean settings use compact same-row switches; other controls remain stacked, and setting explanations appear when you hover their display names. It also links to the full interface and Settings.
 
 ## Browse and install addons
 
