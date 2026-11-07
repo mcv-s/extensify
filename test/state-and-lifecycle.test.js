@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { migrateState, getState, setTheme, updateState } from '../src/storage/state.js';
+import { migrateState, getState, setTheme, setEditorEngine, setEditorToolbar, setOpenAddonAfterPublish, updateState } from '../src/storage/state.js';
 import { exportData, importData, validateImport } from '../src/data/data.js';
 import { installAddon, refreshAddon, uninstallAddon, updateAddonSettings } from '../src/addons/install.js';
 import { createAddonTemplate } from '../src/editor/template.js';
@@ -14,8 +14,34 @@ test('state migration restores safe defaults and known namespace shapes', () => 
   const state=migrateState({schemaVersion:0,preferences:{theme:'sepia'},addons:[]});
   assert.equal(state.schemaVersion,3);
   assert.equal(state.preferences.theme,'dark');
+  assert.equal(state.preferences.editorEngine,'vscode');
+  assert.equal(state.preferences.editorToolbar,'icons');
+  assert.equal(state.preferences.openAddonAfterPublish,true);
   assert.deepEqual(state.addons,{});
   assert.deepEqual(state.editorDrafts,{});
+});
+
+test('state migration validates editor preferences and preserves supported selections', () => {
+  const state=migrateState({preferences:{editorEngine:'classic',editorToolbar:'buttons'}});
+  assert.equal(state.preferences.editorEngine,'classic');
+  assert.equal(state.preferences.editorToolbar,'buttons');
+  const invalid=migrateState({preferences:{editorEngine:'remote',editorToolbar:'compact'}});
+  assert.equal(invalid.preferences.editorEngine,'vscode');
+  assert.equal(invalid.preferences.editorToolbar,'icons');
+  assert.equal(invalid.preferences.openAddonAfterPublish,true);
+});
+
+test('editor preferences persist and reject unsupported values', async () => {
+  store.clear();
+  await setEditorEngine('classic');
+  await setEditorToolbar('buttons');
+  await setOpenAddonAfterPublish(false);
+  const state=await getState();
+  assert.equal(state.preferences.editorEngine,'classic');
+  assert.equal(state.preferences.editorToolbar,'buttons');
+  assert.equal(state.preferences.openAddonAfterPublish,false);
+  assert.throws(()=>setEditorEngine('other'),/must be classic or vscode/);
+  assert.throws(()=>setEditorToolbar('compact'),/must be icons or buttons/);
 });
 
 test('state migration strips credentials from exportable account metadata', () => {
@@ -32,10 +58,11 @@ test('state migration moves legacy addon descriptions to the current format and 
   assert.equal(Object.hasOwn(state.addons['legacy-addon'].config,'description'),false);
 });
 
-test('state migration restores draft IDs from their canonical storage keys', () => {
+test('state migration restores draft IDs and selected files from stored metadata', () => {
   const config = { manifestVersion:1,id:'store-addon',title:'Store Addon',version:'1.0.0',author:{name:'Creator'} };
-  const state = migrateState({ schemaVersion:2, editorDrafts:{'store-addon':{config,files:{'config.json':JSON.stringify(config)}}} });
+  const state = migrateState({ schemaVersion:2, editorDrafts:{'store-addon':{config,files:{'config.json':JSON.stringify(config)},activeFile:'content.js'}} });
   assert.equal(state.editorDrafts['store-addon'].id,'store-addon');
+  assert.equal(state.editorDrafts['store-addon'].activeFile,'content.js');
 });
 
 test('legacy README files are removed while the addon description is preserved', () => {
@@ -61,6 +88,24 @@ test('install, refresh, and uninstall preserve then remove compatible addon sett
   await uninstallAddon(config.id);
   addon=await (await import('../src/storage/state.js')).getInstalledAddon(config.id);
   assert.equal(addon,null);
+});
+
+test('refresh can update the installed package without waiting for runtime sync', async () => {
+  store.clear();
+  const files=createAddonTemplate();const config=JSON.parse(files['config.json']);
+  await installAddon(config,files);
+  const previousChrome=globalThis.chrome;
+  let syncStarted=false;
+  globalThis.chrome={runtime:{sendMessage(){syncStarted=true;return new Promise(()=>{});}}};
+  try {
+    const updated={...config,version:'1.1.0'};
+    await refreshAddon(config.id,updated,files,{waitForSync:false});
+    assert.equal(syncStarted,true);
+    assert.equal((await (await import('../src/storage/state.js')).getInstalledAddon(config.id)).version,'1.1.0');
+  } finally {
+    if(previousChrome===undefined)delete globalThis.chrome;
+    else globalThis.chrome=previousChrome;
+  }
 });
 
 test('data export/import validates and restores one versioned user state', async () => {

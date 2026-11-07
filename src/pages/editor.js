@@ -1,4 +1,4 @@
-import { renderShell, icon, toast } from '../components/shell.js';
+import { renderShell, updateBreadcrumb, icon, toast } from '../components/shell.js';
 import { createCodeEditor } from '../editor/code-editor.js';
 import { getState, saveDraft, updateState } from '../storage/state.js';
 import { createAddonTemplate } from '../editor/template.js';
@@ -16,6 +16,7 @@ window.addEventListener('popstate', () => location.reload());
 
 async function main() {
   const state = await getState();
+  const toolbarAsText = state.preferences.editorToolbar === 'buttons';
   const requestedId = new URLSearchParams(location.search).get('id');
   if (!requestedId) return renderProjectPicker(state);
 
@@ -24,17 +25,19 @@ async function main() {
   let selected = { config: draft.config, files: draft.files };
   if (!selected.config) selected.config = JSON.parse(selected.files['config.json']);
   let project = { ...upgradeAddonPackage(selected.config, selected.files), publishedAt:draft.publishedAt, publishedVersion:draft.publishedVersion };
-  let openFiles = ['config.json'];
-  let activeFile = 'config.json';
+  let activeFile = Object.hasOwn(project.files, draft.activeFile) ? draft.activeFile : 'config.json';
+  project.activeFile = activeFile;
+  let openFiles = [activeFile];
+  let activeFileSave = Promise.resolve();
   let editorView;
   let dirty = false;
   let contextPath = '';
 
   await renderShell({
-    active: 'editor', title: 'Addon editor', subtitle: 'Edit addon files and publish when ready.', flush: true,
+    active: 'editor', title: 'Addon editor', subtitle: 'Edit addon files and publish when ready.', breadcrumb: project.config.title || project.config.id, flush: true,
     content: `<div class="editor-toolbar">
-      <div class="editor-project-name"><span class="editor-dot"></span><b id="project-title"></b><span id="dirty-mark" class="dirty-mark" hidden>Unsaved changes</span></div>
-      <div class="editor-actions"><button type="button" class="icon-button editor-action" id="validate-btn" aria-label="Validate" data-tooltip="Validate">${icon('check-circle',18)}</button><button type="button" class="icon-button editor-action" id="import-btn" aria-label="Load ZIP" data-tooltip="Load ZIP">${icon('upload-simple',18)}</button><button type="button" class="icon-button editor-action" id="folder-btn" aria-label="Load folder" data-tooltip="Load folder">${icon('folder-open',18)}</button><button type="button" class="icon-button editor-action" id="export-btn" aria-label="Save ZIP" data-tooltip="Save ZIP">${icon('download-simple',18)}</button><button type="button" class="icon-button editor-action" id="install-btn" aria-label="Install locally" data-tooltip="Install locally">${icon('arrow-square-out',18)}</button><button type="button" class="icon-button editor-action" id="save-btn" aria-label="Save draft" data-tooltip="Save draft">${icon('floppy-disk',18)}</button><button type="button" class="button primary liquid-button" id="publish-btn" aria-label="Publish" hidden>${icon('cloud-arrow-up',15)} <span>Publish</span></button><input type="file" id="zip-input" accept=".zip,application/zip" hidden><input type="file" id="folder-input" webkitdirectory directory multiple hidden></div>
+      <div class="editor-project-name"><span class="editor-project-logo" id="project-logo">${renderAddonLogo(project.config, project.files, 24)}</span><b id="project-title"></b><span id="dirty-mark" class="dirty-mark" hidden>Unsaved changes</span></div>
+      <div class="editor-actions ${toolbarAsText ? 'text-toolbar' : ''}">${editorActionButton('validate-btn','Validate','check-circle',toolbarAsText)}${editorActionButton('import-btn','Load ZIP','upload-simple',toolbarAsText)}${editorActionButton('folder-btn','Load folder','folder-open',toolbarAsText)}${editorActionButton('export-btn','Save ZIP','download-simple',toolbarAsText)}${editorActionButton('install-btn','Install locally','arrow-square-out',toolbarAsText)}${editorActionButton('save-btn','Save draft','floppy-disk',toolbarAsText)}<button type="button" class="button primary liquid-button editor-action-label" id="publish-btn" aria-label="Publish" hidden>${icon('cloud-arrow-up',15)}<span>Publish</span></button><input type="file" id="zip-input" accept=".zip,application/zip" hidden><input type="file" id="folder-input" webkitdirectory directory multiple hidden></div>
     </div>
     <div class="editor-workspace">
       <aside class="file-panel"><div class="panel-heading">FILES <button class="icon-button" id="new-file" aria-label="Add a file" data-tooltip="Add a file">${icon('plus',15)}</button></div><input id="file-search" class="field file-search" placeholder="Filter files"><div id="file-tree" class="file-tree"></div><div class="file-panel-foot"><span id="file-count"></span><span>Right-click a file for actions</span></div></aside>
@@ -52,31 +55,58 @@ async function main() {
   const validationDialog = $('#validation-dialog');
 
   function syncActiveFile() { if (editorView) project.files[activeFile] = editorView.getValue(); }
+  function rememberActiveFile(path) {
+    project.activeFile = path;
+    const addonId = project.config.id;
+    activeFileSave = activeFileSave.then(() => updateState(next => {
+      if (next.editorDrafts[addonId]) next.editorDrafts[addonId].activeFile = path;
+      return next;
+    })).catch(error => console.warn('Could not remember the selected addon file.', error));
+  }
   function markDirty() { dirty = true; $('#dirty-mark').hidden = false; }
-  function refreshTitle() { $('#project-title').textContent = project.config.title || project.config.id; }
+  function refreshTitle() {
+    $('#project-title').textContent = project.config.title || project.config.id;
+    $('#project-logo').innerHTML = renderAddonLogo(project.config, project.files, 24);
+    updateBreadcrumb('editor', project.config.title || project.config.id);
+  }
   function updateInstallAction() {
     const published=Boolean(project.publishedAt);
     const button=$('#install-btn');
     const label=published?'Extension page':'Install locally';
-    button.innerHTML=icon('arrow-square-out',18);
+    button.className=toolbarAsText?'button editor-action-label':'icon-button editor-action';
+    button.innerHTML=`${icon('arrow-square-out',18)}${toolbarAsText?`<span>${label}</span>`:''}`;
     button.setAttribute('aria-label',label);
-    button.dataset.tooltip=label;
+    if(toolbarAsText)button.removeAttribute('data-tooltip');
+    else button.dataset.tooltip=label;
+  }
+  function setPublishLoading(loading) {
+    const button = $('#publish-btn');
+    button.disabled = loading;
+    button.setAttribute('aria-label', loading ? 'Publishing' : 'Publish');
+    if (loading) button.setAttribute('aria-busy', 'true');
+    else button.removeAttribute('aria-busy');
+    button.innerHTML = loading
+      ? '<i class="ph ph-circle-notch publish-spinner" aria-hidden="true"></i><span>Publishing</span>'
+      : `${icon('cloud-arrow-up',15)}<span>Publish</span>`;
   }
   function writeConfigFile() {
     project.files['config.json'] = JSON.stringify(project.config, null, 2);
+    refreshTitle();
     if (activeFile === 'config.json') showFile(activeFile);
   }
   function showFile(path) {
     if (!Object.hasOwn(project.files, path)) return;
     activeFile = path;
+    rememberActiveFile(path);
     if (!openFiles.includes(path)) openFiles.push(path);
     $('#editor-tabs').innerHTML = openFiles.map(file => `<button class="editor-tab ${file === path ? 'active' : ''}" role="tab" aria-selected="${file === path}" data-file="${escapeHtml(file)}">${icon(file.endsWith('.svg') ? 'image' : 'file-code',13)}<span class="tab-name">${escapeHtml(file)}</span><span class="tab-close" data-close="${escapeHtml(file)}" aria-label="Close ${escapeHtml(file)}">${icon('x',12)}</span></button>`).join('');
     editorView?.destroy();
-    editorView = createCodeEditor($('#code-editor'), project.files[path], { onChange: value => {
+    editorView = createCodeEditor($('#code-editor'), project.files[path], { language: languageForPath(path), fileName: path, engine: state.preferences.editorEngine, onChange: value => {
       project.files[path] = value;
       if (path === 'config.json') {
-        try { project.config = JSON.parse(value); refreshTitle(); } catch { /* Invalid JSON remains editable until validation. */ }
+        try { project.config = JSON.parse(value); } catch { /* Invalid JSON remains editable until validation. */ }
       }
+      refreshTitle();
       markDirty();
     }, onCursor: ({ line, column }) => { $('#cursor-label').textContent = `Ln ${line}, Col ${column}`; } });
     $('#language-label').textContent = path.split('.').pop().toUpperCase();
@@ -146,7 +176,7 @@ async function main() {
   async function saveLocalDraft() {
     syncActiveFile();
     const normalized = upgradeAddonPackage(project.config, project.files);
-    project = { ...normalized, publishedAt:project.publishedAt, publishedVersion:project.publishedVersion };
+    project = { ...normalized, activeFile, publishedAt:project.publishedAt, publishedVersion:project.publishedVersion };
     if (!ensureConfig()) return false;
     const validation = validatePackage(project.config, project.files);
     if (!validation.valid) { showValidation(validation.errors); return false; }
@@ -247,7 +277,28 @@ async function main() {
     const validation = validatePackage(project.config, project.files);
     if (!validation.valid) { showValidation(validation.errors); return; }
     if (!confirm(`Publish ${project.config.title} v${project.config.version} to Explorer?`)) return;
-    try { await publishAddon(project.config, project.files); project.publishedAt = new Date().toISOString(); project.publishedVersion = project.config.version; await saveDraft(project.config.id, structuredClone(project)); dirty = false; $('#dirty-mark').hidden = true; updateInstallAction(); await launchPublishArrow($('#publish-btn')); toast('Addon published to Explorer.'); await transitionToPublishedAddon(project.config.id); }
+    try {
+      setPublishLoading(true);
+      try { await publishAddon(project.config, project.files); }
+      finally { setPublishLoading(false); }
+      let installedRefreshed = false;
+      let refreshError = null;
+      try {
+        if ((await getState()).addons[project.config.id]) {
+          await refreshAddon(project.config.id, project.config, project.files, { waitForSync:false });
+          installedRefreshed = true;
+        }
+      } catch (error) { refreshError = error; }
+      project.publishedAt = new Date().toISOString();
+      project.publishedVersion = project.config.version;
+      await saveDraft(project.config.id, structuredClone(project));
+      dirty = false;
+      $('#dirty-mark').hidden = true;
+      updateInstallAction();
+      await launchPublishArrow($('#publish-btn'));
+      toast(refreshError ? `Addon published, but refresh failed: ${refreshError.message}` : installedRefreshed ? 'Addon published and refreshed.' : 'Addon published to Explorer.');
+      if (state.preferences.openAddonAfterPublish) await transitionToPublishedAddon(project.config.id);
+    }
     catch (error) { toast(error.message, 'error'); }
   });
   window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
@@ -348,6 +399,18 @@ async function renderProjectPicker(state) {
 }
 
 function download(name, blob) { const anchor = document.createElement('a'); const url = URL.createObjectURL(blob); anchor.href = url; anchor.download = name; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+function languageForPath(path) {
+  const extension = path.split('.').pop().toLowerCase();
+  return ({ js: 'javascript', mjs: 'javascript', cjs: 'javascript', ts: 'typescript', json: 'json', css: 'css', scss: 'scss', less: 'less', html: 'html', htm: 'html', svg: 'xml', md: 'markdown', txt: 'plaintext' })[extension] ?? 'plaintext';
+}
+
+function editorActionButton(id, label, iconName, textToolbar) {
+  const className = textToolbar ? 'button editor-action-label' : 'icon-button editor-action';
+  const text = textToolbar ? `<span>${label}</span>` : '';
+  const tooltip = textToolbar ? '' : ` data-tooltip="${label}"`;
+  return `<button type="button" class="${className}" id="${id}" aria-label="${label}"${tooltip}>${icon(iconName,18)}${text}</button>`;
+}
+
 async function transitionToPublishedAddon(id) {
   const host = document.querySelector('.page-scroll');
   const editorContent = host?.querySelector(':scope > .page-content');
@@ -388,8 +451,7 @@ async function transitionToPublishedAddon(id) {
 
   history.pushState({ addonId: id }, '', target);
   document.title = 'addon details - extensify';
-  const breadcrumbs = document.querySelector('.breadcrumbs');
-  if (breadcrumbs) breadcrumbs.innerHTML = 'Workspace <span>/</span> Addon details';
+  updateBreadcrumb('explorer', document.querySelector('#project-title')?.textContent || id);
   document.querySelectorAll('.nav-link').forEach(link => link.classList.toggle('active', link.getAttribute('href') === 'explorer.html'));
 
   requestAnimationFrame(() => host.classList.add('is-transitioning'));

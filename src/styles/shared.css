@@ -8,4 +8,7 @@
 .liquid-button>:not(.liquid-canvas){position:relative;z-index:1}
 .button.primary.liquid-button:hover,.button.primary.liquid-button:focus-visible,.quickstart-download.liquid-button:hover,.quickstart-download.liquid-button:focus-visible{background:var(--green);border-color:var(--green)}
 @media(prefers-reduced-motion:reduce){.liquid-button{transition:none}}
+.publish-spinner{display:inline-block;animation:publish-spinner-turn .8s linear infinite}
+@keyframes publish-spinner-turn{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.publish-spinner{animation:none}}
 

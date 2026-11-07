@@ -1,4 +1,4 @@
-import { applyTheme, renderShell, icon, toast } from '../components/shell.js';
+import { applyTheme, renderShell, updateBreadcrumb, icon, toast } from '../components/shell.js';
 import { renderAddonLogo } from '../components/addon-logo.js';
 import { getState } from '../storage/state.js';
 import { installAddon, refreshAddon, setAddonEnabled, uninstallAddon } from '../addons/install.js';
@@ -49,6 +49,7 @@ async function load() {
 
 function render(addon, remote, localDraft) {
   const config = addon.config;
+  if (!embedded) updateBreadcrumb('explorer', config.title || id);
   const latestVersion = remote?.version.version;
   const hasUpdate = latestVersion && latestVersion !== addon.version;
   const supportedSites = (config.contentScripts ?? []).flatMap(entry => entry.matches ?? []);
@@ -93,18 +94,33 @@ function render(addon, remote, localDraft) {
     catch (error) { notify(error.message, 'error'); }
   });
   document.querySelector('#refresh-addon')?.addEventListener('click', async () => {
+    const button = document.querySelector('#refresh-addon');
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.innerHTML = '<i class="ph ph-circle-notch publish-spinner" aria-hidden="true"></i> Refreshing...';
+    let timeoutId;
     try {
-      if (addon.source === 'local') {
-        const source = localDraft ?? { config, files: addon.files };
-        await refreshAddon(id, source.config, source.files);
-        notify(localDraft ? 'Installed files refreshed from your saved editor draft.' : 'Local addon refreshed.');
-      } else {
-        const pack = await fetchAddonPackage(id);
-        await refreshAddon(id, pack.config, pack.files);
-        notify(`Updated to version ${pack.version.version}.`);
-      }
-      await load();
-    } catch (error) { notify(error.message, 'error'); }
+      await Promise.race([
+        (async () => {
+          if (addon.source === 'local') {
+            const source = localDraft ?? { config, files: addon.files };
+            await refreshAddon(id, source.config, source.files);
+          } else {
+            const pack = await fetchAddonPackage(id);
+            await refreshAddon(id, pack.config, pack.files);
+          }
+          return true;
+        })(),
+        new Promise(resolve => { timeoutId = setTimeout(() => resolve(false), 2000); })
+      ]).then(completed => { if (completed) notify('Addon refreshed.'); });
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      clearTimeout(timeoutId);
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+      button.innerHTML = `${icon('arrow-clockwise', 15)} ${refreshText}`;
+    }
   });
   if (embedded) prepareEmbeddedLinks();
 }

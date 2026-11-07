@@ -1,0 +1,21 @@
+#code-editor .monaco-editor .margin-view-overlays .codicon-folding-manual-collapsed,
+#code-editor .monaco-editor .margin-view-overlays .codicon-folding-manual-expanded,
+#code-editor .monaco-editor .margin-view-overlays .codicon-folding-expanded,
+#code-editor .monaco-editor .margin-view-overlays .codicon-folding-collapsed {
+    opacity: 0;
+    transition: opacity .14s ease;
+}
+
+#code-editor .monaco-editor .margin-view-overlays:hover .codicon-folding-manual-collapsed,
+#code-editor .monaco-editor .margin-view-overlays:hover .codicon-folding-manual-expanded,
+#code-editor .monaco-editor .margin-view-overlays:hover .codicon-folding-expanded,
+#code-editor .monaco-editor .margin-view-overlays:hover .codicon-folding-collapsed {
+    opacity: .5;
+}
+
+#code-editor .monaco-editor .margin-view-overlays .codicon-folding-manual-collapsed:hover,
+#code-editor .monaco-editor .margin-view-overlays .codicon-folding-manual-expanded:hover,
+#code-editor .monaco-editor .margin-view-overlays .codicon-folding-expanded:hover,
+#code-editor .monaco-editor .margin-view-overlays .codicon-folding-collapsed:hover {
+    opacity: 1;
+}

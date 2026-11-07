@@ -6,7 +6,7 @@ export const CURRENT_SCHEMA_VERSION = 3;
 
 const defaults = () => ({
   schemaVersion: CURRENT_SCHEMA_VERSION,
-  preferences: { theme: 'dark', sidebarCollapsed: false, sidebarBehavior: 'collapse' },
+  preferences: { theme: 'dark', sidebarCollapsed: false, sidebarBehavior: 'collapse', editorEngine: 'vscode', editorToolbar: 'icons', openAddonAfterPublish: true },
   addons: {},
   editorDrafts: {},
   auth: { user: null }
@@ -34,6 +34,9 @@ export function migrateState(value) {
   if (!['dark','light','system'].includes(state.preferences.theme)) state.preferences.theme = 'dark';
   state.preferences.sidebarCollapsed = Boolean(state.preferences.sidebarCollapsed);
   if (!['collapse','hide'].includes(state.preferences.sidebarBehavior)) state.preferences.sidebarBehavior = 'collapse';
+  if (!['classic','vscode'].includes(state.preferences.editorEngine)) state.preferences.editorEngine = 'vscode';
+  if (!['icons','buttons'].includes(state.preferences.editorToolbar)) state.preferences.editorToolbar = 'icons';
+  if (typeof state.preferences.openAddonAfterPublish !== 'boolean') state.preferences.openAddonAfterPublish = true;
   state.addons = value.addons && typeof value.addons === 'object' && !Array.isArray(value.addons) ? value.addons : {};
   state.editorDrafts = value.editorDrafts && typeof value.editorDrafts === 'object' && !Array.isArray(value.editorDrafts) ? value.editorDrafts : {};
   for (const [id, addon] of Object.entries(state.addons)) {
@@ -83,6 +86,15 @@ export const setSidebarBehavior = behavior => {
   if (!['collapse','hide'].includes(behavior)) throw new Error('Sidebar behavior must be collapse or hide.');
   return updateState(s => ({ ...s, preferences: { ...s.preferences, sidebarBehavior: behavior } }));
 };
+export const setEditorEngine = engine => {
+  if (!['classic','vscode'].includes(engine)) throw new Error('Editor engine must be classic or vscode.');
+  return updateState(s => ({ ...s, preferences: { ...s.preferences, editorEngine: engine } }));
+};
+export const setEditorToolbar = toolbar => {
+  if (!['icons','buttons'].includes(toolbar)) throw new Error('Editor toolbar must be icons or buttons.');
+  return updateState(s => ({ ...s, preferences: { ...s.preferences, editorToolbar: toolbar } }));
+};
+export const setOpenAddonAfterPublish = enabled => updateState(s => ({ ...s, preferences: { ...s.preferences, openAddonAfterPublish: Boolean(enabled) } }));
 export async function getEffectiveTheme() {
   const theme = await getTheme();
   return theme === 'system' ? (globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme;

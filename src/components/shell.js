@@ -19,6 +19,8 @@ const paths = {
 };
 paths['squares-four'] = paths.squaresfour;
 
+const navigationLinks = [['home', 'House', 'Home', 'index.html'], ['explorer', 'SquaresFour', 'Explorer', 'explorer.html'], ['installed', 'PuzzlePiece', 'Installed', 'installed.html'], ['editor', 'Code', 'Editor', 'editor.html'], ['settings', 'Gear', 'Settings', 'settings.html'], ['docs', 'BookOpenText', 'Docs', 'docs.html'], ['privacy', 'ShieldCheck', 'Privacy', 'privacy.html']];
+
 export async function applyTheme() {
   const [mode, theme] = await Promise.all([getTheme(), getEffectiveTheme()]);
   document.documentElement.dataset.theme = theme;
@@ -32,15 +34,16 @@ export async function applyTheme() {
 export async function toggleTheme() { const modes=['light','dark','system']; const current=await getTheme(); const next=modes[(modes.indexOf(current)+1)%modes.length]; await setTheme(next); await applyTheme(); }
 function updateThemeButton(mode) { const button = document.querySelector('#theme-toggle'); if (!button) return; const modes=['light','dark','system']; const next=modes[(modes.indexOf(mode)+1)%modes.length]; const icons={light:'sun',dark:'moon',system:'monitor'}; button.innerHTML = icon(icons[mode] ?? 'monitor', 17); button.setAttribute('aria-label', `Theme: ${mode}. Switch to ${next}.`); button.dataset.tooltip = `Theme: ${mode}. Switch to ${next}.`; }
 export function icon(name, size = 18) { const key = String(name).replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`).replace(/^-/, ''); if(key==='arrow-square-out')return `<svg xmlns="http://www.w3.org/2000/svg" class="icon" width="${size}" height="${size}" viewBox="0 0 256 256"><rect width="256" height="256" fill="none"/><polyline points="216 104 215.99 40.01 152 40" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><line x1="136" y1="120" x2="216" y2="40" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><path d="M184,136v72a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8h72" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></svg>`; return `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[key] ?? paths.code}</svg>`; }
-export async function renderShell({ active = 'home', title, subtitle, content, narrow = false, flush = false } = {}) {
+export async function renderShell({ active = 'home', title, subtitle, content, narrow = false, flush = false, breadcrumb = '' } = {}) {
   const [, collapsed, sidebarBehavior, state] = await Promise.all([applyTheme(), getSidebarCollapsed(), getSidebarBehavior(), getState()]);
   const theme = document.documentElement.dataset.theme || 'dark';
   const app = document.querySelector('#app');
   const initialSidebarClass = collapsed ? (sidebarBehavior === 'hide' ? 'sidebar-hidden' : 'sidebar-collapsed') : '';
-  const links = [['home', 'House', 'Home', 'index.html'], ['explorer', 'SquaresFour', 'Explorer', 'explorer.html'], ['installed', 'PuzzlePiece', 'Installed', 'installed.html'], ['editor', 'Code', 'Editor', 'editor.html'], ['settings', 'Gear', 'Settings', 'settings.html'], ['docs', 'BookOpenText', 'Docs', 'docs.html'], ['privacy', 'ShieldCheck', 'Privacy', 'privacy.html']];
+  const links = navigationLinks;
   document.title = `${String(title).toLowerCase()} - extensify`;
   const email = state.auth?.user?.email || 'Signed out';
   app.innerHTML = `<div class="app-shell ${initialSidebarClass}"><aside class="sidebar"><a class="brand" href="index.html"><span class="brand-mark"><img src="logo.svg" alt=""></span><span class="brand-name">extensify</span></a><div class="nav-group"><div class="nav-caption">Workspace</div>${links.map(([id, ic, label, href]) => `<a class="nav-link ${active === id ? 'active' : ''}" href="${href}">${id === 'installed' ? '<i class="ph ph-puzzle-piece nav-ph-icon" aria-hidden="true"></i>' : icon(ic)}<span>${label}</span>${id === 'installed' ? '<span class="nav-count" id="installed-count"></span>' : ''}</a>`).join('')}</div><div class="sidebar-bottom"><a class="update-banner" id="update-banner" hidden aria-live="polite" href="https://mcv-s.github.io/extensify/" target="_blank" rel="noreferrer"><span class="update-banner-icon">${icon('download-simple', 15)}</span><span class="update-banner-copy"><b>New version available</b><small id="update-version"></small></span><span class="update-banner-arrow">${icon('arrow-up-right', 13)}</span></a><div class="sidebar-status"><span class="status-dot"></span><span>Local mode ready</span></div><div class="profile-chip">${icon('user-circle')}<span data-tooltip="${escapeHtml(email)}">${escapeHtml(email)}</span></div></div></aside><main class="main-area"><header class="topbar"><button class="icon-button" id="sidebar-toggle" aria-label="Toggle sidebar" data-tooltip="Toggle sidebar">${icon('sidebar')}</button><div class="breadcrumbs">Workspace <span>/</span> ${title}</div><div class="top-actions"><button class="icon-button" id="theme-toggle" aria-label="Change theme" data-tooltip="${theme === 'dark' ? 'Switch to light' : 'Switch to dark'}">${icon('sun')}</button><a class="icon-button" href="settings.html" data-tooltip="Account and settings" aria-label="Account and settings">${icon('user-circle')}</a></div></header><div class="page-scroll"><section class="page-content ${narrow ? 'narrow' : ''} ${flush ? 'editor-page' : ''}"><div class="page-heading"><div><h1>${title}</h1>${subtitle ? `<p class="page-subtitle">${subtitle}</p>` : ''}</div></div>${content}</section></div></main></div><div class="toast-region" aria-live="polite"></div>`;
+  updateBreadcrumb(active, breadcrumb);
   enableLiquidButtons(app);
   showAvailableUpdate();
   updateThemeButton(await getTheme());
@@ -49,6 +52,12 @@ export async function renderShell({ active = 'home', title, subtitle, content, n
   document.querySelector('#theme-toggle').addEventListener('click', toggleTheme);
   document.addEventListener('keydown', event => { if (event.ctrlKey && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'b' && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) { event.preventDefault(); sidebarButton.click(); } });
   document.querySelectorAll('[data-tooltip]').forEach(el => el.setAttribute('aria-description', el.dataset.tooltip));
+}
+export function updateBreadcrumb(active, current = '') {
+  const [,, label, href] = navigationLinks.find(([id]) => id === active) ?? navigationLinks[0];
+  const breadcrumbs = document.querySelector('.breadcrumbs');
+  if (!breadcrumbs) return;
+  breadcrumbs.innerHTML = `<a class="breadcrumb-root" href="index.html">Extensify</a><span class="breadcrumb-separator">/</span><a class="breadcrumb-root" href="${href}">${label}</a>${current ? `<span class="breadcrumb-separator">/</span><span class="breadcrumb-current">${escapeHtml(current)}</span>` : ''}`;
 }
 async function showAvailableUpdate() {
   const banner = document.querySelector('#update-banner');

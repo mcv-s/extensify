@@ -143,13 +143,37 @@
 }
 
 .breadcrumbs {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    overflow: hidden;
     color: var(--muted);
     font-size: 12px
 }
 
-.breadcrumbs span {
+.breadcrumbs .breadcrumb-root {
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.breadcrumbs .breadcrumb-root:hover {
+    color: var(--green);
+}
+
+.breadcrumbs .breadcrumb-separator {
+    flex: 0 0 auto;
     padding: 0 8px;
     color: var(--dim)
+}
+
+.breadcrumbs .breadcrumb-current {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .top-actions {
@@ -478,6 +502,42 @@ body.addon-embedded .page-scroll {
     object-fit: contain;
     padding: 4px;
     background: transparent
+}
+
+.editor-project-logo {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.editor-project-logo .addon-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+}
+
+.editor-project-logo .addon-logo > .ph {
+    font-size: 12px;
+}
+
+.editor-project-logo .addon-logo img {
+    padding: 3px;
+}
+
+.editor-actions.text-toolbar {
+    flex-wrap: wrap;
+    overflow: visible;
+}
+
+.editor-actions .editor-action-label {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.editor-page .editor-actions.text-toolbar {
+    overflow: visible;
 }
 
 .addon-card h3 {
@@ -931,6 +991,7 @@ body {
 }
 
 .editor-page .page-heading {
+    display: none;
     flex: 0 0 auto;
     margin: 0;
     padding: 13px 20px 10px;

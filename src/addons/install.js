@@ -32,7 +32,7 @@ export async function setAddonEnabled(id, enabled, config = null) {
   return result;
 }
 
-export async function refreshAddon(id, config, files) {
+export async function refreshAddon(id, config, files, { waitForSync = true } = {}) {
   const state = await getState();
   const old = state.addons[id];
   if (!old) throw new Error('This addon is not installed.');
@@ -43,8 +43,13 @@ export async function refreshAddon(id, config, files) {
     next.addons[id] = { ...old, config, files: checked.files, version: config.version, settings: defaultSettings(config, old.settings), updatedAt: new Date().toISOString() };
     return next;
   });
-  const response = await globalThis.chrome?.runtime?.sendMessage?.({ type:'EXTENSIFY_SYNC_ADDON', addonId:id });
-  if (response?.error) throw new Error(response.error);
+  const syncRequest = globalThis.chrome?.runtime?.sendMessage?.({ type:'EXTENSIFY_SYNC_ADDON', addonId:id });
+  if (waitForSync) {
+    const response = await syncRequest;
+    if (response?.error) throw new Error(response.error);
+  } else {
+    syncRequest?.then(response => { if (response?.error) console.warn('[Extensify] Addon runtime sync failed:', response.error); }).catch(error => console.warn('[Extensify] Addon runtime sync failed:', error));
+  }
 }
 
 export async function uninstallAddon(id) {
