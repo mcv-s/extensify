@@ -2,6 +2,7 @@ import { getSupabase } from '../supabase/client.js';
 import { validatePackage } from '../addons/validation.js';
 import { addonSummary } from '../addons/metadata.js';
 import { isMissingColumn } from '../supabase/schema-compat.js';
+import { pruneSupersededAddonVersions } from '../supabase/catalog.js';
 
 export async function publishAddon(config, files, changelog = '') {
   const check = validatePackage(config, files);
@@ -27,6 +28,8 @@ export async function publishAddon(config, files, changelog = '') {
   if (publishError) throw publishError;
   const { error: currentError } = await client.from('addons').update({ current_version_id: versionId, published: true }).eq('id', config.id);
   if (currentError) throw currentError;
+  try { await pruneSupersededAddonVersions(); }
+  catch (error) { console.warn('[Extensify] Published successfully, but superseded version cleanup did not complete:', error); }
   return versionId;
 }
 

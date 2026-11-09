@@ -36,7 +36,7 @@ The web documentation and privacy pages are available without installing Extensi
 
 This repository is itself the unpacked extension directory. Load the repository root (the folder containing `manifest.json`) to work from a local checkout. The extension uses the maintainer-configured Supabase project in root `supabase.json`; end users do not configure Supabase. Never place a service-role key in extension files. A custom Supabase domain must be added to `host_permissions` in `manifest.json`.
 
-One-time maintainer setup: apply `supabase/migrations/202610110001_extensify_schema.sql` in the Supabase SQL editor, create the creator account in Supabase Auth, then run the migration’s final `extensify_admins` insert with that Auth user UUID. Keep Row Level Security enabled. Rerun the migration after extension updates that require schema changes; it is safe to run again.
+One-time maintainer setup: apply `supabase/migrations/202610110001_extensify_schema.sql` in the Supabase SQL editor, create the creator account in Supabase Auth, then run the migration’s final `extensify_admins` insert with that Auth user UUID. Keep Row Level Security enabled. Apply later migrations after extension updates that require schema changes; they are safe to run again.
 
 For addon package conventions, runtime APIs, permissions, settings, publishing, storage, and Supabase details, see the [complete guide](docs.md). Keep `docs.md` current when product behavior changes. `AGENTS.md` contains the contributor documentation rule.
 

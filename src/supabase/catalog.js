@@ -1,4 +1,4 @@
-import { getSupabase } from './client.js';
+import { getSupabase, supabaseRequest } from './client.js';
 import { mapAddonFileRows, mapPublishedAddon } from './mapping.js';
 import { isMissingColumn } from './schema-compat.js';
 
@@ -12,6 +12,17 @@ export async function getPublishedCatalogStats() {
   const client = await getSupabase();
   if (!client) return null;
   return readPublishedCatalogStats(client);
+}
+
+export async function pruneSupersededAddonVersions() {
+  const result = await supabaseRequest('rpc/prune_superseded_addon_versions', { method: 'POST', body: {} });
+  const summary = Array.isArray(result) ? result[0] : result;
+  if (!summary) throw new Error('Supabase did not return cleanup results.');
+  return {
+    addonsProcessed: Number(summary.addons_processed || 0),
+    versionsDeleted: Number(summary.versions_deleted || 0),
+    fileBytesDeleted: Number(summary.file_bytes_deleted || 0)
+  };
 }
 
 export async function readPublishedCatalogStats(client) {

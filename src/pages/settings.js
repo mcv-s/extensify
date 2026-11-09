@@ -3,6 +3,7 @@ import { getState, setSidebarBehavior, setTheme, setEditorEngine, setEditorToolb
 import { exportData, importData, resetData } from '../data/data.js';
 import { getCurrentUser, signInWithPassword, signOut } from '../auth/auth.js';
 import { readAuthSession } from '../auth/session.js';
+import { pruneSupersededAddonVersions } from '../supabase/catalog.js';
 
 const state=await getState();
 await renderShell({active:'settings',title:'Settings',subtitle:'Your Extensify preferences and local data.',content:`
@@ -18,11 +19,28 @@ await renderShell({active:'settings',title:'Settings',subtitle:'Your Extensify p
   </div></section>
   <section class="settings-section"><div class="settings-section-heading"><h2>${icon('user-circle',17)}Account</h2><p>Sign in to publish creator projects. Browsing and installing works while signed out.</p></div><div class="settings-section-content"><div id="account-state" class="account-state"><span class="muted">Checking account…</span></div><form id="signin-form" name="extensify-login" class="setting-field signin-form" method="post" autocomplete="on" hidden><label class="setting-label" for="email">Email address</label><input id="email" name="username" type="email" placeholder="you@example.com" autocomplete="username" required><label class="setting-label" for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required><button class="button primary" type="submit">Sign in</button></form><button class="button ghost" id="signout" hidden>Sign out</button></div></section>
   <section class="settings-section"><div class="settings-section-heading"><h2>${icon('shield-check',17)}Page scripts</h2><p>Extensify uses Chromium’s User Scripts API to run enabled addon code.</p></div><div class="settings-section-content settings-actions"><div id="user-script-state" class="callout">Checking browser permission…</div><button class="button" id="open-extension-details">Open extension settings</button></div></section>
-  <section class="settings-section"><div class="settings-section-heading"><h2>${icon('floppy-disk',17)}Local data</h2><p>Manage backups and data stored in this browser profile.</p></div><div class="settings-rows">
+  <section class="settings-section"><div class="settings-section-heading"><h2>${icon('floppy-disk',17)}Data</h2><p>Manage backups and data stored in this browser profile.</p></div><div class="settings-rows">
    <div class="settings-row"><div class="settings-row-copy"><h3>Backup &amp; restore</h3><p>Includes preferences, addons, editor drafts, and your saved sign-in session. Keep the backup private because it contains sign-in tokens.</p><p class="data-status" id="data-status" aria-live="polite"></p></div><div class="inline-actions"><button class="button" id="export-data">${icon('download-simple',15)} Export</button><label class="button file-button">${icon('upload-simple',15)} Import<input id="import-data" type="file" accept="application/json,.json" hidden></label></div></div>
    <div class="settings-row settings-danger-row"><div class="settings-row-copy"><h3>Reset local data</h3><p>Removes local addon installs, settings, saved editor drafts, theme, and cached account metadata.</p></div><button class="button danger" id="reset-data">Reset data</button></div>
   </div></section>
  </div>`});
+document.querySelector('#reset-data').closest('.settings-row').insertAdjacentHTML('beforebegin', `<div class="settings-row" id="supabase-cleanup-row" hidden><div class="settings-row-copy"><h3>Reset Cloud Cache</h3><p>Remove older published versions and their files. Current versions and active drafts are kept; other creators’ data is untouched.</p><p class="data-status" id="supabase-cleanup-status" aria-live="polite"></p></div><button class="button" id="cleanup-supabase-versions">Reset Cloud Cache</button></div>`);
+const cleanupRow=document.querySelector('#supabase-cleanup-row');
+const cleanupButton=document.querySelector('#cleanup-supabase-versions');
+cleanupButton.addEventListener('click',async()=>{
+ if(!confirm('Delete superseded published versions and their files for addons owned by this account? Current published versions and active drafts will be kept. This cannot be undone.'))return;
+ cleanupButton.disabled=true;
+ try{
+  const result=await pruneSupersededAddonVersions();
+  const message=result.versionsDeleted
+   ? `Removed ${result.versionsDeleted} older published version${result.versionsDeleted===1?'':'s'} across ${result.addonsProcessed} addon${result.addonsProcessed===1?'':'s'}; ${formatBytes(result.fileBytesDeleted)} of file content removed.`
+   : 'No superseded published versions were found.';
+  document.querySelector('#supabase-cleanup-status').textContent=message;
+  toast(message);
+ }catch(error){toast(error.message,'error');}
+ finally{cleanupButton.disabled=false;}
+});
+
 function updateThemeOptions(){document.querySelectorAll('[data-theme-option]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.themeOption===state.preferences.theme)));}
 updateThemeOptions();
 document.querySelectorAll('[data-theme-option]').forEach(button=>button.addEventListener('click',async()=>{state.preferences.theme=button.dataset.themeOption;await setTheme(state.preferences.theme);await applyTheme();updateThemeOptions();toast('Theme updated.');}));
@@ -40,8 +58,8 @@ document.querySelector('#export-data').addEventListener('click',async()=>{const 
 document.querySelector('#import-data').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());await importData(data);document.querySelector('#data-status').textContent='Data restored. Refreshing settings…';toast('Import complete.');setTimeout(()=>location.reload(),500);}catch(error){toast(error.message,'error');}finally{e.target.value='';}});
 document.querySelector('#reset-data').addEventListener('click',async()=>{if(!confirm('Reset all local Extensify data? This removes installed addon source and settings.'))return;await resetData();toast('Local data reset.');setTimeout(()=>location.reload(),500);});
 document.querySelector('#signin-form').addEventListener('submit',async e=>{e.preventDefault();try{await signInWithPassword(document.querySelector('#email').value.trim(),document.querySelector('#password').value);toast('Signed in.');await updateAccount();}catch(error){toast(error.message,'error');}});
-function showSignedIn(user,status='Supabase account connected'){const email=user?.email||'Signed in';setProfileLabel(email);document.querySelector('#account-state').innerHTML=`<div class="signed-in">${icon('user-circle',20)}<span><b>${escape(email)}</b><small>${escape(status)}</small></span></div>`;document.querySelector('#signin-form').hidden=true;document.querySelector('#signout').hidden=false;}
-function showSignedOut(){setProfileLabel('Signed out');document.querySelector('#account-state').innerHTML='<span class="badge">Signed out · local use available</span>';document.querySelector('#signin-form').hidden=false;document.querySelector('#signout').hidden=true;}
+function showSignedIn(user,status='Supabase account connected'){const email=user?.email||'Signed in';setProfileLabel(email);document.querySelector('#account-state').innerHTML=`<div class="signed-in">${icon('user-circle',20)}<span><b>${escape(email)}</b><small>${escape(status)}</small></span></div>`;document.querySelector('#signin-form').hidden=true;document.querySelector('#signout').hidden=false;cleanupRow.hidden=false;}
+function showSignedOut(){setProfileLabel('Signed out');document.querySelector('#account-state').innerHTML='<span class="badge">Signed out · local use available</span>';document.querySelector('#signin-form').hidden=false;document.querySelector('#signout').hidden=true;cleanupRow.hidden=true;}
 async function updateAccount(){
  const form=document.querySelector('#signin-form');
  const signoutButton=document.querySelector('#signout');
@@ -70,4 +88,5 @@ await updateAccount();
 try{await chrome.userScripts.getScripts();document.querySelector('#user-script-state').textContent='User Scripts is enabled. Addons request access to their declared sites when you enable them.';}catch{document.querySelector('#user-script-state').textContent='Enable “Allow User Scripts” on the Extensify details page before running addons. In Chrome 138+, open the extension details and enable Allow User Scripts. Earlier versions require Developer mode.';}
 document.querySelector('#open-extension-details').addEventListener('click',()=>{const prefix=/Edg\//.test(navigator.userAgent)?'edge':'chrome';chrome.tabs.create({url:`${prefix}://extensions/?id=${chrome.runtime.id}`});});
 function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}
+function formatBytes(bytes){if(bytes<1000)return `${bytes} B`;const units=['kB','MB','GB','TB'];let value=bytes/1000,index=0;while(value>=1000&&index<units.length-1){value/=1000;index++;}return `${value.toFixed(value<10?1:0)} ${units[index]}`;}
 function escape(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
