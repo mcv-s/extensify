@@ -82,6 +82,7 @@ test('install, refresh, and uninstall preserve then remove compatible addon sett
   await refreshAddon(config.id,updated,files);
   let addon=await (await import('../src/storage/state.js')).getInstalledAddon(config.id);
   assert.equal(addon.version,'1.1.0');
+  assert.equal(addon.source,'local');
   assert.equal(addon.settings.greeting,'Personal greeting');
   assert.equal(addon.settings.newOption,true);
   assert.equal(Object.hasOwn(addon.settings,'removedKey'),false);

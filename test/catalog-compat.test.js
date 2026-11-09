@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readPublishedAddonRows } from '../src/supabase/catalog.js';
+import { readPublishedCatalogStats, readPublishedAddonRows } from '../src/supabase/catalog.js';
 import { isMissingColumn } from '../src/supabase/schema-compat.js';
 import { RestQuery } from '../src/supabase/client.js';
 
@@ -20,6 +20,22 @@ test('catalog listing retries without optional logo column on older Supabase sch
   assert.doesNotMatch(selections[1],/logo/);
   assert.equal(rows[0].id,'sample-addon');
   assert.equal(rows[0].logo,null);
+});
+
+test('catalog stats total current published addon package bytes', async () => {
+  let publishedFilter;
+  let fileVersionIds=[];
+  const client={from(table){
+    const query={select(){return this},eq(key,value){publishedFilter=[key,value];return this},order(){return this},in(key,values){fileVersionIds=values;return this},range(){
+      if(table==='addons')return Promise.resolve({data:[{id:'one',current_version_id:'version-1'},{id:'two',current_version_id:'version-2'}],error:null});
+      return Promise.resolve({data:[{byte_size:120},{byte_size:35}],error:null});
+    }};
+    return query;
+  }};
+  const stats=await readPublishedCatalogStats(client);
+  assert.deepEqual(publishedFilter,['published',true]);
+  assert.deepEqual(fileVersionIds,['version-1','version-2']);
+  assert.deepEqual(stats,{addonCount:2,totalBytes:155});
 });
 
 test('Supabase schema cache column errors are recognized for compatibility writes', () => {

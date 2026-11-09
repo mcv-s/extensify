@@ -8,6 +8,35 @@ export async function listPublishedAddons(search = '') {
   return readPublishedAddonRows(client, search);
 }
 
+export async function getPublishedCatalogStats() {
+  const client = await getSupabase();
+  if (!client) return null;
+  return readPublishedCatalogStats(client);
+}
+
+export async function readPublishedCatalogStats(client) {
+  const addons = await readAllRows(client.from('addons').select('id,current_version_id').eq('published', true).order('id'));
+  const versionIds = [...new Set(addons.map(addon => addon.current_version_id).filter(Boolean))];
+  let totalBytes = 0;
+  for (let index = 0; index < versionIds.length; index += 100) {
+    const batch = versionIds.slice(index, index + 100);
+    const files = await readAllRows(client.from('addon_files').select('byte_size').in('version_id', batch));
+    totalBytes += files.reduce((total, file) => total + Number(file.byte_size || 0), 0);
+  }
+  return { addonCount: addons.length, totalBytes };
+}
+
+async function readAllRows(query) {
+  const rows = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await query.range(offset, offset + 999);
+    if (error) throw error;
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < 1000) return rows;
+  }
+}
+
 export async function readPublishedAddonRows(client, search = '') {
   const request = columns => {
     let query = client.from('addons').select(columns).eq('published', true).order('title').limit(100);

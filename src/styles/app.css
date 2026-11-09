@@ -575,6 +575,17 @@ body.addon-embedded .page-scroll {
     color: var(--green)
 }
 
+.badge.local-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text);
+}
+
+.badge.local-source .ph {
+    font-size: 12px;
+}
+
 .callout {
     padding: 13px 15px;
     border: 1px solid var(--line);

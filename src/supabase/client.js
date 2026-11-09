@@ -84,6 +84,7 @@ export class RestQuery {
   }
   order(value) { this.params.set('order', value); return this; }
   limit(value) { this.params.set('limit', String(value)); return this; }
+  range(from, to) { this.headers.Range = `${from}-${to}`; return this; }
   single() { this.singleMode = 'required'; return this; }
   maybeSingle() { this.singleMode = 'optional'; return this; }
   upsert(row, options = {}) { this.method = 'POST'; this.body = row; if (options.onConflict) this.params.set('on_conflict', options.onConflict); this.headers.Prefer = 'resolution=merge-duplicates,return=representation'; return this; }
