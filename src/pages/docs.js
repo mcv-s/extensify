@@ -18,8 +18,15 @@ try {
   headings.forEach((heading, index) => {
     heading.id = slugify(heading.textContent) || `section-${index + 1}`;
   });
-  const navigation = headings.filter(heading => heading.tagName === 'H2')
-    .map(heading => `<a href="#${heading.id}">${escapeHtml(heading.textContent)}</a>`).join('');
+const navigation = headings.map(heading => {
+    const isSubheading = heading.tagName === 'H3';
+
+    return `
+      <a href="#${heading.id}" class="${isSubheading ? 'docs-toc-sub' : ''}">
+        ${escapeHtml(heading.textContent)}
+      </a>
+    `;
+}).join('');
   template.content.querySelectorAll('pre').forEach(pre => {
     const button = document.createElement('button');
     button.className = 'docs-copy-button';

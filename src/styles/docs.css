@@ -1,4 +1,3 @@
-
 .page-content.docs-page {
     max-width: 1100px;
     padding: 44px 46px 70px;
@@ -44,6 +43,12 @@
     color: var(--green);
 }
 
+.docs-toc a.docs-toc-sub {
+    padding-left: 26px;
+    font-size: 10px;
+    opacity: .75;
+}
+
 .docs-article {
     width: 100%;
     max-width: none;
@@ -55,7 +60,7 @@
     background: var(--surface);
 }
 
-.docs-article > h2 {
+.docs-article>h2 {
     margin: 32px 0 12px;
     padding-top: 24px;
     border-top: 1px solid var(--line);
@@ -64,7 +69,7 @@
     scroll-margin-top: 24px;
 }
 
-.docs-article > h2:first-child {
+.docs-article>h2:first-child {
     margin-top: 0;
     padding-top: 0;
     border-top: 0;
@@ -122,7 +127,7 @@
     white-space: pre;
 }
 
-.docs-article :not(pre) > code {
+.docs-article :not(pre)>code {
     padding: 2px 5px;
     border-radius: 4px;
     background: var(--surface-2);
@@ -194,6 +199,11 @@
     .docs-toc a:hover {
         border-left-color: transparent;
         border-bottom-color: var(--green);
+    }
+
+    .docs-toc a.docs-toc-sub {
+        padding: 6px 9px;
+        font-size: 10px;
     }
 
     .docs-article {
