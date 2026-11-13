@@ -63,7 +63,7 @@ ZIP import checks the archive and preserves filenames and text contents. ZIP exp
 
 ## `config.json` reference
 
-The configuration describes the addon and its runtime declarations. It is the source of truth for title, optional `short-description`, version, author, icon, permissions, content scripts, and settings. Keep the full user-facing explanation in `addon-description.md`. When present, `short-description` is used for compact Explorer listings; addons without it use the beginning of `addon-description.md` instead.
+The configuration describes the addon and its runtime declarations. It is the source of truth for title, optional `short-description`, version, author, icon, permissions, an optional background script, content scripts, and settings. Keep the full user-facing explanation in `addon-description.md`. When present, `short-description` is used for compact Explorer listings; addons without it use the beginning of `addon-description.md` instead.
 
 ```json
 {
@@ -114,7 +114,36 @@ Icon names/classes are passed through to the Phosphor Web stylesheet without a r
 
 ### Permissions and URL matches
 
-Permissions are declared in the top-level `permissions` array and shown on the addon detail page before installation. Current declarations include `contentScript`, `storage`, `settings`, `tabs`, `activeTab`, `clipboardRead`, and `clipboardWrite`. Declarations document the capabilities the addon expects; they are not a sandbox or a guarantee that malicious code cannot access a page.
+Permissions are declared in the top-level `permissions` array and shown on the addon detail page before installation. Current declarations include `contentScript`, `background`, `storage`, `settings`, `tabs`, `alarms`, `activeTab`, `clipboardRead`, `clipboardWrite`, and `contextMenus`. Declarations document the capabilities the addon expects; they are not a sandbox or a guarantee that malicious code cannot access a page.
+
+Use the optional `background` field to name one JavaScript entry file that runs once for the addon at browser level, rather than once in every matching tab. Add the `background` permission when using this field. Add `tabs` to receive tab events or use the background `tabs` API, and `alarms` to schedule alarms. These declarations are checked by Extensify's background API broker.
+
+```json
+{
+  "permissions": ["background", "storage", "tabs", "alarms"],
+  "background": "background.js"
+}
+```
+
+The background entry must be a `.js` file included in the addon package. It runs in its own sandboxed frame inside one hidden Extensify offscreen document. It has no direct `chrome.*` extension APIs; use the `extensify` API below. The frame is separate from site pages and is not created per tab.
+
+### Context menu actions
+
+Declare `contextMenus` and add actions with unique IDs, titles, and packaged JavaScript files. Optional `matches` limits where an action appears and can run; when omitted, it applies to all supported websites and enabling the addon requests broad site access. Clicking an action runs its file in the page's isolated user-script world.
+
+```json
+{
+  "permissions": ["contextMenus"],
+  "contextMenus": [{
+    "id": "copy-selection",
+    "title": "Copy selected text",
+    "js": "copy-selection.js",
+    "matches": ["https://example.com/*"]
+  }]
+}
+```
+
+Chrome and Edge do not support custom icons on context menu items, so addon logos and Phosphor icons cannot be shown in these native menu rows.
 
 Content script `matches` use browser-style patterns such as `https://example.com/*`, `https://*.example.com/*`, or `<all_urls>`. Keep patterns narrow. Supported `runAt` values are `document_start`, `document_end`, and `document_idle`. Every file listed in `js` or `css` must exist in the package. `allFrames` controls whether matching frames are targeted.
 
@@ -143,6 +172,30 @@ Storage methods are scoped to the addon ID. Use the runtime API rather than reac
 Addon files are available to runtime code by package path. For example, `fetch('/123.css')` or `fetch('assets/data.json')` reads that file from the installed addon when it exists. These package-local GET and HEAD requests return a normal `Response` with a useful content type. A stylesheet link such as `<link rel="stylesheet" href="/123.css">` is also resolved from the package and applied as an injected style, rather than requesting that path from the current website. Other URLs continue through the browser's native `fetch`, with the page's usual CORS and permission rules. In declared CSS files, local `@import` references are inlined and local `url(...)` assets are embedded, so they do not resolve against the website's origin.
 
 Page script execution requires the browser’s **Allow User Scripts** permission for Extensify. The Settings page checks this permission and provides a shortcut to the extension details page. Host access prompts and availability can differ by Chromium version.
+
+### Background scripts
+
+An addon with `"background": "background.js"` and the `background` permission gets one browser-level background instance while enabled. It starts when Extensify starts the background host; it does not start again for each website or tab. The script runs in a sandboxed frame without direct extension APIs. Its supported API is:
+
+```js
+const { addon, settings, storage, tabs, alarms, log } = extensify;
+
+extensify.on('start', () => log.info('Background started', addon.id));
+extensify.on('browserStartup', () => log.info('Browser started'));
+extensify.on('tabCreated', tab => log.info('New tab', tab.id));
+extensify.on('tabUpdated', ({ tabId, changeInfo, tab }) => {
+  if (changeInfo.status === 'complete') log.info('Loaded', tab.url);
+});
+
+const activeTabs = await tabs.query({ active: true, currentWindow: true });
+await storage.set('lastActiveTab', activeTabs[0]?.id ?? null);
+await alarms.create('refresh', { periodInMinutes: 5 });
+extensify.on('alarm', alarm => log.info('Alarm', alarm.name));
+```
+
+Supported events are `start`, `browserStartup`, `extensionInstalled`, `tabCreated`, `tabUpdated`, `tabRemoved`, and `alarm`. Register handlers with `extensify.on(name, callback)`; it returns an unsubscribe function. `storage.get`, `storage.set`, and `storage.remove` use the same addon-scoped 1 MB storage as page scripts. `tabs` supports `query`, `update`, and `create`; `alarms` supports `create` and `clear`, with alarm names scoped to the addon. These APIs require the matching `storage`, `tabs`, or `alarms` permission.
+
+This is a background execution context, not a promise of an immortal thread. Chromium may suspend or discard background contexts, and the browser or operating system may shut down. Extensify restores enabled scripts when its background host starts again; global variables and timers are lost when that happens, so persist important state with `storage`. Alarm events are suitable for periodic work, but can be delayed by the browser. Do not rely on a tight interval or continuous loop for guaranteed execution.
 
 ## Publish and Supabase
 

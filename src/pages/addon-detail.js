@@ -8,8 +8,10 @@ import { renderMarkdown } from '../utils/markdown.js';
 import { renderSettingsForm } from '../components/settings-form.js';
 
 const permissionText = {
+  background: 'Runs one isolated browser-level background script for this addon.',
   contentScript: 'Runs the declared scripts on matching sites.', storage: 'Stores addon-specific data on this device.',
   settings: 'Defines visible user-configurable settings.', tabs: 'May request tab information through the runtime.',
+  alarms: 'Can schedule named background alarm events.',
   activeTab: 'Can interact with the current tab when granted.', clipboardRead: 'Can read clipboard data when used.',
   clipboardWrite: 'Can write clipboard data when used.'
 };

@@ -48,6 +48,34 @@ test('package validation parses config.json and matches its stable ID', () => {
   assert.match(validatePackage(config, files).errors.join(' '), /ID does not match/);
 });
 
+test('background scripts require the background permission and a packaged JavaScript entry file', () => {
+  const files = createAddonTemplate();
+  const config = JSON.parse(files['config.json']);
+  config.background = 'background.js';
+  config.permissions.push('background');
+  files['background.js'] = "extensify.on('start', () => {});";
+  assert.equal(validatePackage(config, files).valid, true);
+  config.permissions = config.permissions.filter(permission => permission !== 'background');
+  assert.match(validatePackage(config, files).errors.join(' '), /Declare the background permission/);
+  config.permissions.push('background');
+  config.background = '../background.js';
+  assert.match(validatePackage(config, files).errors.join(' '), /Unsafe file path/);
+  config.background = 'missing.js';
+  assert.match(validatePackage(config, files).errors.join(' '), /Background script file not found/);
+});
+
+test('context menu actions require permission and a packaged JavaScript file', () => {
+  const files = createAddonTemplate();
+  const config = JSON.parse(files['config.json']);
+  config.contextMenus = [{ id: 'copy-selection', title: 'Copy selection', js: 'menu.js', matches: ['https://example.com/*'] }];
+  files['menu.js'] = '';
+  assert.match(validatePackage(config, files).errors.join(' '), /Declare the contextMenus permission/);
+  config.permissions.push('contextMenus');
+  assert.equal(validatePackage(config, files).valid, true);
+  config.contextMenus[0].js = 'missing.js';
+  assert.match(validatePackage(config, files).errors.join(' '), /packaged JavaScript file/);
+});
+
 test('settings schema validates choices and bounds', () => {
   assert.deepEqual(validateSettings({theme:{type:'select'},count:{type:'number',min:4,max:2}}),['Select setting “theme” needs choices.','Setting “count” has min greater than max.']);
 });

@@ -14,11 +14,16 @@ export async function installAddon(config, files, { source = 'local' } = {}) {
 export async function setAddonEnabled(id, enabled, config = null) {
   if (enabled && globalThis.chrome?.permissions?.request) {
     if (!globalThis.chrome.userScripts) throw new Error('Enable “Allow User Scripts” in the Extensify extension details before enabling addons.');
-    const origins = [...new Set((config?.contentScripts ?? []).flatMap(entry => entry.matches ?? []).flatMap(pattern => pattern === '<all_urls>' ? ['http://*/*','https://*/*'] : [pattern]))];
-    if (origins.length) {
-      const permissionRequest = chrome.permissions.request({ origins });
+    const patterns = [
+      ...(config?.contentScripts ?? []).flatMap(entry => entry.matches ?? []),
+      ...(config?.contextMenus ?? []).flatMap(action => action.matches ?? ['<all_urls>'])
+    ];
+    const origins = [...new Set(patterns.flatMap(pattern => pattern === '<all_urls>' ? ['http://*/*','https://*/*'] : [pattern]))];
+    const permissions = (config?.contextMenus?.length ?? 0) ? ['contextMenus'] : [];
+    if (origins.length || permissions.length) {
+      const permissionRequest = chrome.permissions.request({ origins, permissions });
       const granted = await permissionRequest;
-      if (!granted) throw new Error('Site access was not granted, so the addon stays disabled.');
+      if (!granted) throw new Error('Required browser or site access was not granted, so the addon stays disabled.');
     }
   }
   const result = await updateState(state => { if (state.addons[id]) state.addons[id].enabled = Boolean(enabled); return state; });
@@ -60,5 +65,10 @@ export async function uninstallAddon(id) {
 }
 
 export async function updateAddonSettings(id, settings) {
-  return updateState(state => { if (state.addons[id]) state.addons[id].settings = { ...state.addons[id].settings, ...settings }; return state; });
+  const result = await updateState(state => { if (state.addons[id]) state.addons[id].settings = { ...state.addons[id].settings, ...settings }; return state; });
+  if (result.addons[id]?.config.background) {
+    const syncRequest = globalThis.chrome?.runtime?.sendMessage?.({ type:'EXTENSIFY_SYNC_BACKGROUND_ADDON', addonId:id });
+    syncRequest?.catch(error => console.warn('[Extensify] Background settings sync failed:', error));
+  }
+  return result;
 }

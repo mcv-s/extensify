@@ -139,6 +139,7 @@ async function main() {
   }
   function updateManifestFileReferences(previousPath, nextPath) {
     if (project.config.logo?.type === 'svg' && project.config.logo.path === previousPath) project.config.logo.path = nextPath;
+    if (project.config.background === previousPath) project.config.background = nextPath;
     for (const declaration of project.config.contentScripts ?? []) {
       declaration.js = (declaration.js ?? []).map(path => path === previousPath ? nextPath : path);
       declaration.css = (declaration.css ?? []).map(path => path === previousPath ? nextPath : path);
@@ -147,6 +148,10 @@ async function main() {
   }
   function removeManifestFileReferences(path) {
     if (project.config.logo?.type === 'svg' && project.config.logo.path === path) project.config.logo = { type: 'icon', name: 'PuzzlePiece', color: '#3ecf8e' };
+    if (project.config.background === path) {
+      delete project.config.background;
+      project.config.permissions = (project.config.permissions ?? []).filter(permission => !['background', 'alarms'].includes(permission));
+    }
     for (const declaration of project.config.contentScripts ?? []) {
       declaration.js = (declaration.js ?? []).filter(entry => entry !== path);
       declaration.css = (declaration.css ?? []).filter(entry => entry !== path);

@@ -91,6 +91,26 @@ test('install, refresh, and uninstall preserve then remove compatible addon sett
   assert.equal(addon,null);
 });
 
+test('changing settings on a background addon requests a background-only sync', async () => {
+  store.clear();
+  const files=createAddonTemplate();const config=JSON.parse(files['config.json']);
+  config.permissions.push('background');
+  config.background='background.js';
+  files['background.js']='extensify.on("start", () => {});';
+  files['config.json']=JSON.stringify(config);
+  await installAddon(config,files);
+  const previousChrome=globalThis.chrome;
+  let request=null;
+  globalThis.chrome={runtime:{sendMessage(message){request=message;return Promise.resolve({ok:true});}}};
+  try {
+    await updateAddonSettings(config.id,{greeting:'Updated'});
+    assert.deepEqual(request,{type:'EXTENSIFY_SYNC_BACKGROUND_ADDON',addonId:config.id});
+  } finally {
+    if(previousChrome===undefined)delete globalThis.chrome;
+    else globalThis.chrome=previousChrome;
+  }
+});
+
 test('refresh can update the installed package without waiting for runtime sync', async () => {
   store.clear();
   const files=createAddonTemplate();const config=JSON.parse(files['config.json']);

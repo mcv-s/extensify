@@ -1,6 +1,6 @@
 const FILE_LIMIT = 2 * 1024 * 1024;
 const ALLOWED = new Set(['.html', '.css', '.js', '.json', '.md', '.txt', '.svg']);
-const PERMISSIONS = new Set(['contentScript', 'storage', 'settings', 'tabs', 'activeTab', 'clipboardRead', 'clipboardWrite']);
+const PERMISSIONS = new Set(['contentScript', 'background', 'storage', 'settings', 'tabs', 'alarms', 'activeTab', 'clipboardRead', 'clipboardWrite', 'contextMenus']);
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
@@ -58,6 +58,8 @@ export function validatePackage(config, files) {
   else for (const permission of config.permissions) if (!PERMISSIONS.has(permission)) errors.push(`Unknown permission: ${permission}`);
   if (!Array.isArray(config.contentScripts ?? [])) errors.push('contentScripts must be an array.');
   if ((config.contentScripts?.length ?? 0) && !config.permissions?.includes('contentScript')) errors.push('Declare the contentScript permission when content scripts are configured.');
+  if (!Array.isArray(config.contextMenus ?? [])) errors.push('contextMenus must be an array.');
+  if ((config.contextMenus?.length ?? 0) && !config.permissions?.includes('contextMenus')) errors.push('Declare the contextMenus permission when context menu actions are configured.');
   errors.push(...validateSettings(config.env));
   const normalized = {};
   for (const [originalPath, contents] of Object.entries(files ?? {})) {
@@ -72,6 +74,15 @@ export function validatePackage(config, files) {
       normalized[path] = String(contents);
     } catch (error) { errors.push(error.message); }
   }
+  if (config.background != null) {
+    if (!config.permissions?.includes('background')) errors.push('Declare the background permission when a background script is configured.');
+    try {
+      const backgroundPath = normalizePath(config.background);
+      if (!backgroundPath.toLowerCase().endsWith('.js')) errors.push('The background script must be a JavaScript file.');
+      if (!normalized[backgroundPath]) errors.push(`Background script file not found: ${backgroundPath}`);
+    } catch (error) { errors.push(error.message); }
+  } else if (config.permissions?.includes('background')) errors.push('Configure a background script when the background permission is declared.');
+  if (config.permissions?.includes('alarms') && !config.permissions?.includes('background')) errors.push('Declare the background permission to use alarms.');
   if (!normalized['config.json']) errors.push('Missing config.json.');
   else {
     try {
@@ -90,6 +101,17 @@ export function validatePackage(config, files) {
     if (declaration.css != null && !Array.isArray(declaration.css)) errors.push(`Content script ${index + 1} css must be an array.`);
     for (const entry of [...(declaration.js ?? []), ...(declaration.css ?? [])]) if (!normalized[entry]) errors.push(`Declared entry-point file not found: ${entry}`);
     if (declaration.runAt && !['document_start','document_end','document_idle'].includes(declaration.runAt)) errors.push(`Invalid runAt value: ${declaration.runAt}`);
+  }
+  const contextMenuIds = new Set();
+  for (const [index, action] of (Array.isArray(config.contextMenus) ? config.contextMenus : []).entries()) {
+    if (!action || typeof action !== 'object' || Array.isArray(action)) { errors.push(`Context menu action ${index + 1} must be an object.`); continue; }
+    if (typeof action.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(action.id)) errors.push(`Context menu action ${index + 1} needs an id using letters, numbers, underscores, or hyphens.`);
+    else if (contextMenuIds.has(action.id)) errors.push(`Duplicate context menu action id: ${action.id}`);
+    else contextMenuIds.add(action.id);
+    if (typeof action.title !== 'string' || !action.title.trim()) errors.push(`Context menu action ${index + 1} needs a title.`);
+    if (typeof action.js !== 'string' || !Object.hasOwn(normalized, action.js) || !action.js.toLowerCase().endsWith('.js')) errors.push(`Context menu action ${index + 1} js must point to a packaged JavaScript file.`);
+    if (action.matches != null && (!Array.isArray(action.matches) || !action.matches.length)) errors.push(`Context menu action ${index + 1} matches must be a non-empty array when provided.`);
+    for (const pattern of action.matches ?? []) if (!validateMatchPattern(pattern)) errors.push(`Invalid URL match pattern: ${pattern}`);
   }
   return { valid: errors.length === 0, errors, files: normalized };
 }

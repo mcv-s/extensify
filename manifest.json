@@ -12,8 +12,13 @@
   },
   "action": { "default_popup": "popup.html", "default_title": "Extensify" },
   "background": { "service_worker": "src/background/service-worker.js", "type": "module" },
-  "permissions": ["storage", "tabs", "userScripts"],
+  "permissions": ["storage", "tabs", "userScripts", "offscreen", "alarms"],
+  "optional_permissions": ["contextMenus"],
   "host_permissions": ["https://*.supabase.co/*", "https://raw.githubusercontent.com/*"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
-  "options_page": "settings.html"
+  "options_page": "settings.html",
+  "sandbox": { "pages": ["src/background/sandbox.html"] },
+  "content_security_policy": {
+    "sandbox": "sandbox allow-scripts; script-src 'self' 'unsafe-eval'; object-src 'self';"
+  }
 }
