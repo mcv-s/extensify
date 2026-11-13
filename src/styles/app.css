@@ -373,6 +373,13 @@ body.addon-embedded .page-scroll {
     color: var(--danger)
 }
 
+
+.button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .card {
     background: var(--surface);
     border: 1px solid var(--line);

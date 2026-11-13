@@ -87,9 +87,14 @@ if (!addons.length) list.innerHTML = '<div class="popup-empty">No addons install
 else list.innerHTML = addons.map(addon => {
   const hasSettings = Object.values(addon.config.env ?? {}).some(schema => schema.visibility !== false);
   if (addon.config.pinnable == false) return '';
+  if (addon.pinned !== true) return '';
 
   return `<div class="popup-addon" style="display:flex;flex-direction:column;align-items:stretch"><div style="display:flex;align-items:center;gap:9px;width:100%">${renderAddonLogo(addon.config, addon.files, 30)}<a class="popup-addon-name" href="addon.html?id=${encodeURIComponent(addon.id)}" target="_blank"><b>${escape(addon.config.title)}</b><small>${addon.enabled ? 'Enabled' : 'Disabled'}</small></a>${hasSettings ? `<button type="button" data-expand-id="${escape(addon.id)}" aria-expanded="false" aria-controls="settings-${escape(addon.id)}" aria-label="Expand settings for ${escape(addon.config.title)}" style="display:grid;place-items:center;width:26px;height:26px;padding:0;border:0;background:transparent;color:var(--muted);cursor:pointer">${icon('caret-down', 20)}</button>` : ''}<label class="popup-switch" title="${addon.enabled ? 'Disable' : 'Enable'} ${escape(addon.config.title)}"><input type="checkbox" data-id="${escape(addon.id)}" ${addon.enabled ? 'checked' : ''} aria-label="${addon.enabled ? 'Disable' : 'Enable'} ${escape(addon.config.title)}"><span></span></label></div>${hasSettings ? `<div id="settings-${escape(addon.id)}" class="popup-addon-settings" hidden style="min-height:70px;margin-top:4px;padding:10px 8px;border-radius:5px"></div>` : ''}</div>`;
 }).join('');
+
+if (!list.innerHTML.trim()) {
+  list.innerHTML = '<div class="popup-empty">No addons pinned yet.</div>';
+}
 
 
 

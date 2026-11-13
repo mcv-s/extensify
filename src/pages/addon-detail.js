@@ -1,6 +1,6 @@
 import { applyTheme, renderShell, updateBreadcrumb, icon, toast } from '../components/shell.js';
 import { renderAddonLogo } from '../components/addon-logo.js';
-import { getState } from '../storage/state.js';
+import { getState, updateState } from '../storage/state.js';
 import { installAddon, refreshAddon, setAddonEnabled, uninstallAddon } from '../addons/install.js';
 import { addonDescription } from '../addons/metadata.js';
 import { fetchAddonPackage } from '../supabase/catalog.js';
@@ -71,18 +71,51 @@ function render(addon, remote, localDraft) {
         <div class="pattern-list">${supportedSites.map(pattern => `<code>${escapeHtml(pattern)}</code>`).join('') || '<span class="muted">No content scripts declared.</span>'}</div>
         ${remote?.version.changelog ? `<hr class="divider"><h3 class="section-title">Latest changelog</h3><div class="markdown-body">${renderMarkdown(remote.version.changelog)}</div>` : ''}
       </article>
+
+      
       <aside class="card detail-side">
         <div class="side-label">${addon.installedAt ? 'INSTALLED' : 'ADDON'}</div>
         <div class="side-info"><span>Version</span><b>${escapeHtml(addon.version)}</b></div>
         ${addon.installedAt ? `<div class="side-info"><span>Installed</span><b>${new Date(addon.installedAt).toLocaleDateString()}</b></div>` : ''}
         ${addon.updatedAt ? `<div class="side-info"><span>Refreshed</span><b>${new Date(addon.updatedAt).toLocaleDateString()}</b></div>` : ''}
         ${hasUpdate ? `<div class="callout update-callout">A newer version (${escapeHtml(latestVersion)}) is available. Your settings are preserved when refreshed.</div>` : ''}
-        <div id="addon-actions">
-          ${addon.installedAt ? `<label class="enable-control"><span>${addon.enabled ? 'Enabled' : 'Disabled'}</span><input id="enable-addon" type="checkbox" ${addon.enabled ? 'checked' : ''}><span class="toggle"></span></label><button class="button ${hasUpdate ? 'primary' : ''}" id="refresh-addon">${icon('arrow-clockwise', 15)} ${refreshText}</button>${localDraft ? `<a class="button" href="editor.html?id=${encodeURIComponent(id)}">${icon('code', 15)} Edit files</a>` : ''}<button class="button danger" id="remove-addon">${icon('trash', 15)} Uninstall</button>` : `<button class="button primary liquid-button" id="install-addon">${icon('plus', 15)} Install addon</button>`}
-        </div>
+
+
+      <div id="addon-actions">
+        ${addon.installedAt ? `
+          <label class="enable-control">
+            <span>${addon.enabled ? 'Enabled' : 'Disabled'}</span>
+            <input id="enable-addon" type="checkbox" ${addon.enabled ? 'checked' : ''}>
+            <span class="toggle"></span>
+          </label>
+
+          <button class="button" id="pin-addon" data-tooltip="Pin addons to make them show up in the popup menu for quick access." ${addon.config.pinnable === false ? 'disabled' : ''}>
+            ${icon(addon.pinned ? 'push-pin-slash' : 'push-pin', 15)}
+            ${addon.pinned ? 'Unpin addon' : 'Pin addon'}
+          </button>
+
+          <button class="button ${hasUpdate ? 'primary' : ''}" id="refresh-addon">
+            ${icon('arrow-clockwise', 15)} ${refreshText}
+          </button>
+          ${localDraft ? `<a class="button" href="editor.html?id=${encodeURIComponent(id)}">${icon('code', 15)} Edit files</a>` : ''}
+          <button class="button danger" id="remove-addon">
+            ${icon('trash', 15)} Uninstall
+          </button>
+        ` : `
+          <button class="button primary liquid-button" id="install-addon">
+            ${icon('plus', 15)} Install addon
+          </button>
+        `}
+      </div>
+
+
+
+
       </aside>
     </div>
     ${addon.installedAt && Object.keys(config.env ?? {}).length ? `<section class="settings-section"><div class="section-heading"><div><h3 class="section-title">Addon settings</h3><p class="muted small-copy">Changes are stored locally for this addon.</p></div><span class="badge">${Object.values(config.env).filter(setting => setting.visibility !== false).length} fields</span></div><div class="card settings-panel" id="settings-form"></div></section>` : ''}`;
+
+
 
   if (addon.installedAt) renderSettingsForm(addon, document.querySelector('#settings-form'));
   document.querySelector('#enable-addon')?.addEventListener('change', async event => {
@@ -90,6 +123,9 @@ function render(addon, remote, localDraft) {
     try { await setAddonEnabled(id, input.checked, config); notify(`Addon ${input.checked ? 'enabled' : 'disabled'}.`); await load(); }
     catch (error) { input.checked = false; notify(error.message, 'error'); }
   });
+
+
+
   document.querySelector('#remove-addon')?.addEventListener('click', async () => { await uninstallAddon(id); notify('Addon uninstalled.'); if (embedded) window.top.location.href = 'installed.html'; else location.href = 'installed.html'; });
   document.querySelector('#install-addon')?.addEventListener('click', async () => {
     try { const pack = remote ?? await fetchAddonPackage(id); await installAddon(pack.config, pack.files, { source: 'supabase' }); notify('Addon installed. You can enable it when ready.'); await load(); }
@@ -124,6 +160,39 @@ function render(addon, remote, localDraft) {
       button.innerHTML = `${icon('arrow-clockwise', 15)} ${refreshText}`;
     }
   });
+
+
+document.querySelector('#pin-addon')?.addEventListener('click', async () => {
+  const pinned = !addon.pinned;
+
+  try {
+    await updateState(s => ({
+      ...s,
+      addons: {
+        ...s.addons,
+        [id]: {
+          ...s.addons[id],
+          pinned
+        }
+      }
+    }));
+
+    addon.pinned = pinned;
+
+    const button = document.querySelector('#pin-addon');
+
+    button.innerHTML = `${icon(pinned ? 'push-pin-slash' : 'push-pin', 15)} ${pinned ? 'Unpin addon' : 'Pin addon'}`;
+
+    notify(pinned ? 'Addon pinned.' : 'Addon unpinned.');
+
+  } catch (error) {
+    notify(error.message, 'error');
+  }
+});
+
+
+
+
   if (embedded) prepareEmbeddedLinks();
 }
 
