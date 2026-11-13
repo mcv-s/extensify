@@ -62,3 +62,9 @@ const navigation = headings.map(heading => {
 
 function slugify(value) { return String(value).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
 function escapeHtml(value='') { return String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character])); }
+
+if (location.hash) {
+    document.querySelector(location.hash)?.scrollIntoView({
+        behavior: 'instant'
+    });
+}
