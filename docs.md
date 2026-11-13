@@ -171,6 +171,18 @@ Each key in `env` describes a default runtime value and, unless hidden, a genera
 Set `visibility` to `false` to omit a value from the user-facing settings form. This only hides the control: configuration and runtime values delivered to a browser can be inspected. Do not store passwords, API secrets, or other credentials in addon settings.
 
 
+### Addon Pages
+
+You can make an html document in your addon, and then link to it. You can also set the primary "addon page" with:
+
+```json
+  "addonPage": "example.html"
+```
+
+Adding that attribute to your config.json (at the top level) will add a button to the addon page which tries to open the document "example.html" through extensify's addon html opener. You can also link to other pages within this one.
+
+
+
 
 
 

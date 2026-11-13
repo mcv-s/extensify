@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Extensify Addon Page</title>
+  <style>
+    html, body {
+      margin: 0;
+      min-height: 100%;
+
+    }
+
+    iframe {
+      display: block;
+      width: 100%;
+      min-height: 100vh;
+      border: 0;
+    }
+
+
+        @media (prefers-color-scheme: dark) {
+        html,
+        body,
+        #content {
+            background: #161616;
+        }
+    }
+  </style>
+</head>
+<body>
+  <div id="content"></div>
+  <script type="module" src="./addon-page.js"></script>
+</body>
+</html>

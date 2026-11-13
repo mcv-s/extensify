@@ -97,10 +97,17 @@ function render(addon, remote, localDraft) {
           <button class="button ${hasUpdate ? 'primary' : ''}" id="refresh-addon">
             ${icon('arrow-clockwise', 15)} ${refreshText}
           </button>
+
+          ${addon.config.addonPage ? `          <button class="button primary liquid-button" id="extension-page">
+            ${icon('globe', 15)} Extension Page
+          </button>` : ''}
+
+
           ${localDraft ? `<a class="button" href="editor.html?id=${encodeURIComponent(id)}">${icon('code', 15)} Edit files</a>` : ''}
           <button class="button danger" id="remove-addon">
             ${icon('trash', 15)} Uninstall
           </button>
+
         ` : `
           <button class="button primary liquid-button" id="install-addon">
             ${icon('plus', 15)} Install addon
@@ -160,6 +167,14 @@ function render(addon, remote, localDraft) {
       button.innerHTML = `${icon('arrow-clockwise', 15)} ${refreshText}`;
     }
   });
+
+  document.getElementById('extension-page')?.addEventListener('click', () => {
+  const page = addon.config.addonPage.replace(/\.html$/, '');
+
+  chrome.tabs.create({
+    url: chrome.runtime.getURL(`addon-page.html#${addon.id}/${page}`)
+  });
+});
 
 
 document.querySelector('#pin-addon')?.addEventListener('click', async () => {

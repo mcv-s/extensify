@@ -11,14 +11,14 @@ try {
   const response = await fetch(docsUrl);
   if (!response.ok) throw new Error(`Could not load docs.md (${response.status}).`);
   const markdown = await response.text();
-  const rendered = renderMarkdown(markdown, { headingOffset:0 });
+  const rendered = renderMarkdown(markdown, { headingOffset: 0 });
   const template = document.createElement('template');
   template.innerHTML = rendered;
   const headings = [...template.content.querySelectorAll('h2, h3')];
   headings.forEach((heading, index) => {
     heading.id = slugify(heading.textContent) || `section-${index + 1}`;
   });
-const navigation = headings.map(heading => {
+  const navigation = headings.map(heading => {
     const isSubheading = heading.tagName === 'H3';
 
     return `
@@ -26,13 +26,13 @@ const navigation = headings.map(heading => {
         ${escapeHtml(heading.textContent)}
       </a>
     `;
-}).join('');
+  }).join('');
   template.content.querySelectorAll('pre').forEach(pre => {
     const button = document.createElement('button');
     button.className = 'docs-copy-button';
     button.type = 'button';
     button.setAttribute('aria-label', 'Copy code');
-    button.innerHTML = `${icon('copy',14)}<span>Copy</span>`;
+    button.innerHTML = `${icon('copy', 14)}<span>Copy</span>`;
     pre.append(button);
   });
   const documentContent = `
@@ -41,13 +41,64 @@ const navigation = headings.map(heading => {
       <article class="docs-article markdown-body">${template.innerHTML}</article>
     </div>`;
   if (inExtension) {
-    await renderShell({ active:'docs', title:'Documentation', content:documentContent });
+    await renderShell({ active: 'docs', title: 'Documentation', content: documentContent });
     document.querySelector('.page-content').classList.add('docs-page');
+
+
   } else {
     document.title = 'Documentation - Extensify';
     document.querySelector('#app').innerHTML = `<main class="standalone-doc-wrap"><a class="standalone-brand" href="./quickstart.html"><img src="./logo.svg" alt=""> extensify</a><header class="standalone-heading"><span>EXTENSIFY GUIDE</span><h1>Documentation</h1><p>Browse the guide to installing Extensify, using addons, and building your own.</p><nav><a href="./quickstart.html">Quickstart</a><a href="./privacy.html">Privacy policy</a></nav></header>${documentContent}</main>`;
     document.querySelector('.docs-article').classList.add('standalone-article');
   }
+  // Jump to the initial URL section
+  if (location.hash) {
+    document.getElementById(decodeURIComponent(location.hash.slice(1)))
+      ?.scrollIntoView({ behavior: 'instant' });
+  }
+
+  // Get the ACTUAL rendered headings
+  const pageHeadings = [...document.querySelectorAll(
+    '.docs-article h2, .docs-article h3'
+  )];
+
+  const navLinks = document.querySelectorAll('.docs-toc a');
+
+  navLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      navLinks.forEach(item => item.classList.remove('active'));
+
+      link.classList.add('active');
+      history.replaceState(null, '', link.getAttribute('href'));
+    });
+  });
+
+  const observer = new IntersectionObserver(entries => {
+    const visible = entries
+      .filter(entry => entry.isIntersecting)
+      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+
+    if (!visible.length) return;
+
+    const id = visible[0].target.id;
+
+    navLinks.forEach(link => {
+      const active = link.getAttribute('href') === `#${id}`;
+
+      link.classList.toggle('active', active);
+
+      if (active) {
+        link.setAttribute('aria-current', 'location');
+      } else {
+        link.removeAttribute('aria-current');
+      }
+    });
+
+    history.replaceState(null, '', `#${id}`);
+  }, {
+    rootMargin: '-15% 0px -75% 0px'
+  });
+
+  pageHeadings.forEach(heading => observer.observe(heading));
   document.querySelectorAll('.docs-copy-button').forEach(button => button.addEventListener('click', async () => {
     const code = button.closest('pre')?.querySelector('code')?.textContent ?? '';
     try {
@@ -57,14 +108,23 @@ const navigation = headings.map(heading => {
     } catch { toast('Could not copy this code block. Check clipboard permission.', 'error'); }
   }));
 } catch (error) {
-  await renderShell({ active:'docs', title:'Documentation', content:`<div class="empty-state"><div class="empty-icon">${icon('warning',20)}</div><h3>Could not load documentation</h3><p>${escapeHtml(error.message)}</p></div>` });
+  await renderShell({ active: 'docs', title: 'Documentation', content: `<div class="empty-state"><div class="empty-icon">${icon('warning', 20)}</div><h3>Could not load documentation</h3><p>${escapeHtml(error.message)}</p></div>` });
 }
 
-function slugify(value) { return String(value).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
-function escapeHtml(value='') { return String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character])); }
+function slugify(value) { return String(value).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+function escapeHtml(value = '') { return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character])); }
+
+
+
+
+
+
+
+
 
 if (location.hash) {
-    document.querySelector(location.hash)?.scrollIntoView({
-        behavior: 'instant'
-    });
+  document.querySelector(location.hash)?.scrollIntoView({
+    behavior: 'instant'
+  });
 }
+
