@@ -61,7 +61,7 @@ Allowed extensions are `.html`, `.css`, `.js`, `.json`, `.md`, `.txt`, and `.svg
 
 ZIP import checks the archive and preserves filenames and text contents. ZIP export keeps source readable; Extensify does not minify or obfuscate addon files.
 
-## `config.json` reference
+## config.json file
 
 The configuration describes the addon and its runtime declarations. It is the source of truth for title, optional `short-description`, version, author, icon, permissions, an optional background script, content scripts, and settings. Keep the full user-facing explanation in `addon-description.md`. When present, `short-description` is used for compact Explorer listings; addons without it use the beginning of `addon-description.md` instead.
 
@@ -98,9 +98,6 @@ The configuration describes the addon and its runtime declarations. It is the so
 
 Required fields are `manifestVersion` (currently `1`), a stable lowercase hyphenated `id`, `title`, semantic `version` (`major.minor.patch` with an optional prerelease suffix), `author.name`, `logo`, `permissions`, `contentScripts`, and `env`. An ID identifies an addon across versions; changing a title does not change its ID.
 
-You can also add  ` "pinnable": false,` to the config.json to make it so that the addon cannot be in the popup. It will still be installed but won't appear.
-
-
 
 
 ### Logo
@@ -132,6 +129,16 @@ Use the optional `background` field to name one JavaScript entry file that runs 
 
 The background entry must be a `.js` file included in the addon package. It runs in its own sandboxed frame inside one hidden Extensify offscreen document. It has no direct `chrome.*` extension APIs; use the `extensify` API below. The frame is separate from site pages and is not created per tab.
 
+
+
+### Pinnability
+
+You can add  ` "pinnable": false,` to the config.json to make it so that the addon cannot be in the popup. 
+
+Users won't be able to pin the addon to the popup :D
+
+
+
 ### Context menu actions
 
 Declare `contextMenus` and add actions with unique IDs, titles, and packaged JavaScript files. Optional `matches` limits where an action appears and can run; when omitted, it applies to all supported websites and enabling the addon requests broad site access. Clicking an action runs its file in the page's isolated user-script world.
@@ -152,11 +159,58 @@ Chrome and Edge do not support custom icons on context menu items, so addon logo
 
 Content script `matches` use browser-style patterns such as `https://example.com/*`, `https://*.example.com/*`, or `<all_urls>`. Keep patterns narrow. Supported `runAt` values are `document_start`, `document_end`, and `document_idle`. Every file listed in `js` or `css` must exist in the package. `allFrames` controls whether matching frames are targeted.
 
+
+
+
+
+
 ### Settings and environment values
 
 Each key in `env` describes a default runtime value and, unless hidden, a generated control on the installed addon’s detail page. Supported field types include boolean, string, textarea, number, slider, select, color, URL, password, and JSON. Fields can define `displayName`, `info`, `placeholder`, `default`, `visibility`, `min`, `max`, `step`, `choices`, `group`, and `order` where appropriate. `displayName` changes the title shown above the control; when omitted, the internal key is shown. `info` adds a small grey explanation below the title. The older `label` and `description` names remain supported as fallbacks. Select settings require choices. Values are validated and saved per addon on this device.
 
 Set `visibility` to `false` to omit a value from the user-facing settings form. This only hides the control: configuration and runtime values delivered to a browser can be inspected. Do not store passwords, API secrets, or other credentials in addon settings.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Methods
+
+After using 
+
+```js
+const { addon, settings, storage, log } = window.extensify;
+
+```
+
+at the top of your script, you'll probably want to use some methods to actually DO stuff.
+
+
+
+### Settings values
+
+Use `settings.value` to get the value for the corresponding key.
+
+```js
+if key_clicked(settings.keybind) { // example with pseudocode
+  // do something
+}
+```
+
+
+
 
 ## Content scripts and runtime API
 
@@ -177,6 +231,13 @@ Storage methods are scoped to the addon ID. Use the runtime API rather than reac
 Addon files are available to runtime code by package path. For example, `fetch('/123.css')` or `fetch('assets/data.json')` reads that file from the installed addon when it exists. These package-local GET and HEAD requests return a normal `Response` with a useful content type. A stylesheet link such as `<link rel="stylesheet" href="/123.css">` is also resolved from the package and applied as an injected style, rather than requesting that path from the current website. Other URLs continue through the browser's native `fetch`, with the page's usual CORS and permission rules. In declared CSS files, local `@import` references are inlined and local `url(...)` assets are embedded, so they do not resolve against the website's origin.
 
 Page script execution requires the browser’s **Allow User Scripts** permission for Extensify. The Settings page checks this permission and provides a shortcut to the extension details page. Host access prompts and availability can differ by Chromium version.
+
+
+
+
+
+
+
 
 ### Background scripts
 
@@ -202,6 +263,13 @@ Supported events are `start`, `browserStartup`, `extensionInstalled`, `tabCreate
 
 This is a background execution context, not a promise of an immortal thread. Chromium may suspend or discard background contexts, and the browser or operating system may shut down. Extensify restores enabled scripts when its background host starts again; global variables and timers are lost when that happens, so persist important state with `storage`. Alarm events are suitable for periodic work, but can be delayed by the browser. Do not rely on a tight interval or continuous loop for guaranteed execution.
 
+
+
+
+
+
+
+
 ## Publish and Supabase
 
 Browsing and installing public addons work without signing in. The maintainer configures one Supabase project in the extension’s root `supabase.json` with the Project URL and public anon/publishable key. Never place a service-role key in extension files. End users do not configure Supabase or run migrations.
@@ -211,6 +279,14 @@ The maintainer applies `supabase/migrations/202610110001_extensify_schema.sql` i
 Creator sign-in is available from Settings when signed out. Its labeled email/password form uses standard username and current-password autocomplete metadata so Chrome and Edge can recognize credentials and offer password save/autofill when supported. Browser password managers may vary in whether they save credentials for extension pages. When signed in, Settings shows the account identity and sign-out action instead of sign-in fields. In Editor, **Publish** validates and uploads the current package, showing a spinning progress icon during upload. After upload confirmation, an already-installed copy is updated immediately and its runtime sync begins; Editor then transitions to the add-on details page. A published version is immutable; publish a new version number for changes. After publish, Extensify attempts to remove superseded published versions owned by the signed-in creator. Settings also has a confirmed cleanup action for existing history; it retains each addon’s current published version and active draft, and only removes that creator’s older published versions and their files. Its byte report counts file contents, not exact physical database storage. Explorer retrieves a compact addon listing, with a lightweight version-config lookup for missing/default logo metadata. Full addon files are retrieved when a user opens details or installs/refreshes an addon.
 
 The schema is compact and separates `addons`, `addon_versions`, and `addon_files`, with profiles/admin records for access control. The `addons.logo` field stores listing metadata; migration backfill copies the logo from existing current version configs. If an existing project has the older catalog table shape, the maintainer reruns the migration to add/backfill the column. The extension has a compatibility path for older schemas, but the catalog’s listing icon is most reliable after migration.
+
+
+
+
+
+
+
+
 
 ## Extensify Settings and Data
 
