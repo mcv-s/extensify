@@ -98,6 +98,11 @@ The configuration describes the addon and its runtime declarations. It is the so
 
 Required fields are `manifestVersion` (currently `1`), a stable lowercase hyphenated `id`, `title`, semantic `version` (`major.minor.patch` with an optional prerelease suffix), `author.name`, `logo`, `permissions`, `contentScripts`, and `env`. An ID identifies an addon across versions; changing a title does not change its ID.
 
+You can also add  ` "pinnable": false,` to the config.json to make it so that the addon cannot be in the popup. It will still be installed but won't appear.
+
+
+
+
 ### Logo
 
 Use either an icon and six-digit hexadecimal color, or an SVG file included in the package:
